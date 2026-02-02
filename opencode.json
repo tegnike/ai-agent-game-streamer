@@ -1,0 +1,101 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-4.1",
+  "small_model": "openai/gpt-4.1-mini",
+  "provider": {
+    "openai": {
+      "options": {
+        "apiKey": "{env:OPENAI_API_KEY}",
+        "timeout": 120000
+      }
+    }
+  },
+  "default_agent": "game-streamer",
+  "instructions": ["CLAUDE.md"],
+  "server": {
+    "port": 4096,
+    "hostname": "127.0.0.1"
+  },
+  "permission": {
+    "bash": {
+      "*": "deny",
+      "agent-browser *": "allow",
+      "python3 -m http.server *": "allow",
+      "lsof *": "allow",
+      "kill *": "allow",
+      "sleep *": "allow",
+      "ls *": "allow",
+      "npm install -g agent-browser*": "allow",
+      "chmod +x*": "allow"
+    },
+    "read": "allow",
+    "edit": "deny",
+    "write": "deny",
+    "webfetch": "deny"
+  },
+  "agent": {
+    "game-streamer": {
+      "description": "AI Game Streamer - ゲーム配信を統合管理するプライマリエージェント",
+      "mode": "primary",
+      "model": "openai/gpt-4.1",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": true,
+        "webfetch": false
+      },
+      "permission": {
+        "bash": {
+          "*": "deny",
+          "agent-browser *": "allow",
+          "python3 -m http.server *": "allow",
+          "lsof *": "allow",
+          "kill *": "allow",
+          "sleep *": "allow",
+          "ls *": "allow",
+          "npm install -g agent-browser*": "allow",
+          "chmod +x*": "allow"
+        }
+      }
+    },
+    "play-game": {
+      "description": "ゲームプレイ専門サブエージェント。agent-browserでブラウザゲームを自動プレイする",
+      "mode": "subagent",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": true,
+        "webfetch": false
+      },
+      "permission": {
+        "bash": {
+          "*": "deny",
+          "agent-browser *": "allow",
+          "sleep *": "allow",
+          "lsof *": "allow",
+          "kill *": "allow",
+          "python3 -m http.server *": "allow"
+        }
+      }
+    },
+    "create-board-game": {
+      "description": "ボードゲーム作成サブエージェント。HTML/CSS/JSでブラウザベースのボードゲームを作成する",
+      "mode": "subagent",
+      "model": "openai/gpt-4.1",
+      "tools": {
+        "write": true,
+        "edit": true,
+        "bash": true,
+        "webfetch": false
+      },
+      "permission": {
+        "bash": {
+          "*": "deny",
+          "python3 -m http.server *": "allow",
+          "ls *": "allow",
+          "agent-browser *": "allow"
+        }
+      }
+    }
+  }
+}

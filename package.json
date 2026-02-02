@@ -1,0 +1,21 @@
+{
+  "name": "ai-agent-game-streamer",
+  "version": "1.0.0",
+  "description": "AI Agent Game Streamer - OpenCode SDK powered game streaming",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "play": "tsx src/index.ts --game",
+    "stream": "tsx src/index.ts --loop",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "latest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}
