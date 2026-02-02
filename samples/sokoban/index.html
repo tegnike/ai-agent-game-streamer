@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>倉庫番</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../common/header.css">
+</head>
+<body class="has-game-header">
+    <nav class="game-header">
+        <span class="game-header-title">倉庫番</span>
+        <a href="../" class="game-header-back">← ゲーム一覧</a>
+    </nav>
+    <div class="container">
+        <div id="board" class="board"></div>
+
+        <div class="game-panel">
+            <h1>倉庫番</h1>
+
+            <div class="game-info">
+                <div class="stage-display">
+                    ステージ: <span id="current-stage">1</span> / <span id="total-stages">10</span>
+                </div>
+                <div class="moves-display">
+                    手数: <span id="move-count">0</span>
+                </div>
+                <div class="box-display">
+                    箱: <span id="boxes-on-goal">0</span> / <span id="total-boxes">0</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="arrow-keys">
+                    <button class="arrow-btn" data-dir="up">↑</button>
+                    <div class="arrow-row">
+                        <button class="arrow-btn" data-dir="left">←</button>
+                        <button class="arrow-btn" data-dir="down">↓</button>
+                        <button class="arrow-btn" data-dir="right">→</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button id="undo-btn" class="control-btn">元に戻す</button>
+                <button id="reset-btn" class="control-btn">リセット</button>
+            </div>
+
+            <div class="stage-buttons">
+                <button id="prev-stage" class="stage-btn">◀ 前</button>
+                <button id="next-stage" class="stage-btn">次 ▶</button>
+            </div>
+
+            <div id="message" class="message">矢印キーまたはWASDで移動</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{GAME_NAME}}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>{{GAME_NAME}}</h1>
+
+        <div class="game-info">
+            <div class="turn-display">
+                現在のターン: <span id="current-turn" class="black-text">黒</span>
+            </div>
+            <div class="score-display">
+                <div class="score black-score">
+                    <span class="stone-icon black"></span>
+                    <span id="black-count">0</span>
+                </div>
+                <div class="score white-score">
+                    <span class="stone-icon white"></span>
+                    <span id="white-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="board" class="board"></div>
+
+        <div id="message" class="message"></div>
+
+        <button id="reset-btn" class="reset-btn">リセット</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

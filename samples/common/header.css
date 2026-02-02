@@ -1,0 +1,45 @@
+/* 共通ゲームヘッダー */
+.game-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: rgba(20, 20, 30, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-header-title {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.game-header-back {
+    color: rgba(180, 200, 255, 0.8);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.2s;
+}
+
+.game-header-back:hover {
+    color: #fff;
+}
+
+/* ヘッダー分のpadding-topを付与 */
+body.has-game-header {
+    padding-top: 40px;
+}
+
+/* card-battle対策: containerのheight/max-width調整 */
+body.has-game-header .container {
+    height: calc(100vh - 50px);
+    max-width: min(calc((100vh - 50px) * 16 / 9), 1280px);
+}

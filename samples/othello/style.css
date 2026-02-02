@@ -1,0 +1,265 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    text-align: center;
+}
+
+h1 {
+    color: #fff;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.turn-display {
+    color: #fff;
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.black-text {
+    color: #333;
+    background: #fff;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.white-text {
+    color: #fff;
+    background: #333;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.score-display {
+    display: flex;
+    gap: 20px;
+}
+
+.score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 1.5rem;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.stone-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.stone-icon.black {
+    background: radial-gradient(circle at 30% 30%, #555, #000);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stone-icon.white {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    background: #333;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    background: #2e8b57;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.cell:hover {
+    background: #3cb371;
+}
+
+.cell.valid-move {
+    background: #4ade80;
+}
+
+.cell.valid-move::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    position: absolute;
+}
+
+.cell.valid-move:hover {
+    background: #86efac;
+}
+
+.stone {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.stone.black {
+    background: radial-gradient(circle at 30% 30%, #555, #000);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stone.white {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stone.flip {
+    animation: flip 0.4s ease;
+}
+
+@keyframes flip {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.message {
+    color: #fff;
+    font-size: 1.3rem;
+    margin-top: 20px;
+    min-height: 40px;
+    padding: 10px;
+}
+
+.message.winner {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 1.5rem;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.reset-btn {
+    margin-top: 20px;
+    padding: 12px 40px;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+
+.reset-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+}
+
+.reset-btn:active {
+    transform: translateY(0);
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 520px) {
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .cell {
+        width: 40px;
+        height: 40px;
+    }
+
+    .stone {
+        width: 32px;
+        height: 32px;
+    }
+
+    .cell.valid-move::after {
+        width: 12px;
+        height: 12px;
+    }
+
+    .board {
+        padding: 6px;
+        gap: 1px;
+    }
+
+    .game-info {
+        gap: 15px;
+    }
+
+    .turn-display,
+    .score {
+        font-size: 1rem;
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 380px) {
+    .cell {
+        width: 35px;
+        height: 35px;
+    }
+
+    .stone {
+        width: 28px;
+        height: 28px;
+    }
+}

@@ -1,0 +1,349 @@
+/*
+ * 倉庫番 (Sokoban) スタイル
+ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: linear-gradient(135deg, #2c1810 0%, #1a0f0a 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.game-panel {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+h1 {
+    color: #f4d03f;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ゲーム情報表示 */
+.game-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.stage-display,
+.moves-display,
+.box-display {
+    color: #fff;
+    font-size: 1.1rem;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.stage-display span,
+.moves-display span,
+.box-display span {
+    color: #f4d03f;
+    font-weight: bold;
+}
+
+/* ボード */
+.board {
+    display: inline-grid;
+    gap: 0;
+    background: #1a0f0a;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    margin: 0 auto;
+}
+
+/* セル共通 */
+.cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    font-size: 28px;
+    transition: background 0.1s;
+}
+
+/* 床 */
+.cell.floor {
+    background: #8b7355;
+}
+
+/* 壁 */
+.cell.wall {
+    background: linear-gradient(135deg, #4a3728 0%, #2d1f14 100%);
+    box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                inset -2px -2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ゴール */
+.cell.goal {
+    background: #8b7355;
+}
+
+.cell.goal::before {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: radial-gradient(circle, #ff6b6b 0%, #c0392b 100%);
+    border-radius: 50%;
+    opacity: 0.6;
+    animation: pulse-goal 2s infinite;
+}
+
+@keyframes pulse-goal {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* プレイヤー */
+.player {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-radius: 50%;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    position: relative;
+}
+
+.player::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+.player::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+/* 箱 */
+.box {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    border-radius: 4px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.2);
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.box::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+/* ゴール上の箱 */
+.box.on-goal {
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+    animation: box-complete 0.3s ease;
+}
+
+@keyframes box-complete {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* メッセージ */
+.message {
+    color: #ccc;
+    font-size: 1.1rem;
+    margin-top: 20px;
+    min-height: 30px;
+    padding: 10px;
+}
+
+.message.clear {
+    color: #f4d03f;
+    font-weight: bold;
+    font-size: 1.5rem;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 操作ボタン */
+.controls {
+    margin-top: 20px;
+}
+
+.arrow-keys {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.arrow-row {
+    display: flex;
+    gap: 5px;
+}
+
+.arrow-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.arrow-btn:hover {
+    background: linear-gradient(135deg, #4a6278 0%, #3d566e 100%);
+}
+
+.arrow-btn:active {
+    transform: scale(0.95);
+}
+
+/* コントロールボタン */
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.control-btn {
+    padding: 12px 25px;
+    font-size: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+
+.control-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+}
+
+/* ステージ選択ボタン */
+.stage-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stage-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+
+.stage-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.stage-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 520px) {
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .cell {
+        width: 35px;
+        height: 35px;
+        font-size: 24px;
+    }
+
+    .player {
+        width: 28px;
+        height: 28px;
+    }
+
+    .box {
+        width: 30px;
+        height: 30px;
+    }
+
+    .cell.goal::before {
+        width: 20px;
+        height: 20px;
+    }
+
+    .game-info {
+        gap: 10px;
+    }
+
+    .stage-display,
+    .moves-display,
+    .box-display {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
+    .arrow-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 1.3rem;
+    }
+}

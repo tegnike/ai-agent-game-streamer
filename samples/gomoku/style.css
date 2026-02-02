@@ -1,0 +1,379 @@
+/*
+ * 五目並べ CSS
+ * 19x19 ボード用スタイリング
+ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.game-panel {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+h1 {
+    color: #fff;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ゲーム情報表示 */
+.game-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.turn-display {
+    color: #fff;
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.black-text {
+    color: #333;
+    background: #fff;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.white-text {
+    color: #fff;
+    background: #333;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.score-display {
+    display: flex;
+    gap: 20px;
+}
+
+.score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 1.5rem;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+/* 石アイコン */
+.stone-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.stone-icon.black {
+    background: radial-gradient(circle at 30% 30%, #555, #000);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stone-icon.white {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ボード - 囲碁スタイル（交点に打つ） */
+.board {
+    display: grid;
+    grid-template-columns: repeat(19, 1fr);
+    gap: 0;
+    background: #dcb35c;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-width: 650px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* セル - 碁盤スタイル */
+.cell {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    background: transparent;
+}
+
+/* 碁盤の線 */
+.cell::before {
+    content: '';
+    position: absolute;
+    background: #333;
+}
+
+/* 横線 */
+.cell::before {
+    width: 100%;
+    height: 1px;
+    top: 50%;
+    left: 0;
+}
+
+/* 縦線 */
+.cell::after {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    left: 50%;
+    top: 0;
+    background: #333;
+}
+
+/* 端のセル処理 */
+.cell.edge-top::after {
+    height: 50%;
+    top: 50%;
+}
+
+.cell.edge-bottom::after {
+    height: 50%;
+    top: 0;
+}
+
+.cell.edge-left::before {
+    width: 50%;
+    left: 50%;
+}
+
+.cell.edge-right::before {
+    width: 50%;
+    left: 0;
+}
+
+/* 星（天元・星） */
+.cell.star-point::before {
+    z-index: 1;
+}
+
+.cell.star-point .star-marker {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #333;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+/* ホバーエフェクト */
+.cell:hover {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+}
+
+.cell.valid-move:hover::before,
+.cell.valid-move:hover::after {
+    background: transparent;
+}
+
+/* 最後に打った場所のハイライト */
+.cell.last-move {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 50%;
+}
+
+/* 石 */
+.stone {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    z-index: 10;
+    position: relative;
+}
+
+.stone.black {
+    background: radial-gradient(circle at 30% 30%, #555, #000);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stone.white {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 石のアニメーション */
+.stone.place {
+    animation: place 0.3s ease;
+}
+
+@keyframes place {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* 勝利ライン */
+.cell.winning-line {
+    background: rgba(255, 215, 0, 0.5) !important;
+    border-radius: 50%;
+}
+
+.cell.winning-line .stone {
+    box-shadow: 0 0 10px 3px #ffd700;
+}
+
+/* メッセージ */
+.message {
+    color: #fff;
+    font-size: 1.3rem;
+    margin-top: 20px;
+    min-height: 40px;
+    padding: 10px;
+}
+
+.message.winner {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 1.5rem;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* リセットボタン */
+.reset-btn {
+    margin-top: 20px;
+    padding: 12px 40px;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+
+.reset-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+}
+
+.reset-btn:active {
+    transform: translateY(0);
+}
+
+/* CPUが考え中 */
+.thinking {
+    color: #aaa;
+    font-style: italic;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 700px) {
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .board {
+        padding: 10px;
+    }
+
+    .cell {
+        width: 25px;
+        height: 25px;
+    }
+
+    .stone {
+        width: 22px;
+        height: 22px;
+    }
+
+    .cell.star-point .star-marker {
+        width: 6px;
+        height: 6px;
+    }
+
+    .game-info {
+        gap: 15px;
+    }
+
+    .turn-display,
+    .score {
+        font-size: 1rem;
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 550px) {
+    .cell {
+        width: 20px;
+        height: 20px;
+    }
+
+    .stone {
+        width: 18px;
+        height: 18px;
+    }
+
+    .board {
+        padding: 8px;
+    }
+
+    .cell.star-point .star-marker {
+        width: 5px;
+        height: 5px;
+    }
+}
+
+@media (max-width: 450px) {
+    .cell {
+        width: 16px;
+        height: 16px;
+    }
+
+    .stone {
+        width: 14px;
+        height: 14px;
+    }
+
+    .board {
+        padding: 6px;
+    }
+
+    .cell.star-point .star-marker {
+        width: 4px;
+        height: 4px;
+    }
+}
