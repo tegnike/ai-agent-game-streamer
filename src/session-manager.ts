@@ -57,6 +57,9 @@ export class SessionManager {
       `- --headed フラグを必ず使用してください`,
       `- ソースコード（script.js, style.css, index.html）は読まないでください`,
       `- README.md のみ参照可能です`,
+      `- スクリーンショットは必ず logs/ ディレクトリにタイムスタンプ付きで保存してください`,
+      `  形式: logs/YYYYMMDD-HHMMSS_名前.png （例: logs/20260202-143025_initial.png）`,
+      `  シェルでの生成例: agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"`,
     ].join("\n");
   }
 

@@ -39,6 +39,9 @@ permission:
 - **README.md のみ参照可能**
 - 各手の間に **0.5秒以上の間隔** を空けること（視聴者が追えるように）
 - ゲームプレイには `@play-game` サブエージェントを活用すること
+- **スクリーンショットは必ず `logs/` ディレクトリにタイムスタンプ付きで保存すること**
+  - 形式: `logs/YYYYMMDD-HHMMSS_名前.png`（例: `logs/20260202-143025_initial.png`）
+  - シェルでの生成: `agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"`
 
 ## 利用可能なゲーム
 

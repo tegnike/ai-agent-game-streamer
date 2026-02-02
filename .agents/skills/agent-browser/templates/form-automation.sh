@@ -56,7 +56,8 @@ agent-browser get url
 agent-browser snapshot -i
 
 # Take screenshot of result
-agent-browser screenshot /tmp/form-result.png
+mkdir -p logs
+agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_form-result.png"
 
 # Cleanup
 agent-browser close

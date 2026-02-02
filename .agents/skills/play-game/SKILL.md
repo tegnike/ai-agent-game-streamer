@@ -1,7 +1,7 @@
 ---
 name: play-game
 description: ブラウザゲームを自動プレイするスキル。agent-browserを使ってローカルまたはオンラインのHTML/JSゲームをプレイします。倉庫番、オセロ、五目並べなど。
-allowed-tools: Bash(agent-browser:*), Bash(npm install -g agent-browser*), Bash(chmod +x*), Bash(python3 -m http.server*), Bash(lsof -i:*), Bash(kill *)
+allowed-tools: Bash(agent-browser:*), Bash(npm install -g agent-browser*), Bash(chmod +x*), Bash(python3 -m http.server*), Bash(lsof -i:*), Bash(kill *), Bash(mkdir -p logs*)
 ---
 
 # Game Playing with agent-browser
@@ -64,8 +64,16 @@ agent-browser --headed open http://127.0.0.1:8888/index.html
 ### Step 3: スクリーンショットで状態確認
 
 ```bash
-agent-browser screenshot /tmp/game.png
+mkdir -p logs
+agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_game.png"
 ```
+
+> **スクリーンショットの保存ルール**:
+> - すべてのスクリーンショットは `logs/` ディレクトリに保存してください
+> - ファイル名は必ず **`YYYYMMDD-HHMMSS_名前.png`** 形式にしてください
+> - 例: `logs/20260202-143025_initial.png`, `logs/20260202-143130_result.png`
+> - シェルでの生成: `agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_名前.png"`
+> - プロジェクトルートや `/tmp/` に保存しないでください
 
 ### Step 4: ゲームオブジェクトを確認
 

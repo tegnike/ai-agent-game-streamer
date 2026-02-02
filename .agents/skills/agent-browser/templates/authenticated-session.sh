@@ -79,7 +79,8 @@ exit 0
 # FINAL_URL=$(agent-browser get url)
 # if [[ "$FINAL_URL" == *"login"* ]] || [[ "$FINAL_URL" == *"signin"* ]]; then
 #     echo "ERROR: Login failed - still on login page"
-#     agent-browser screenshot /tmp/login-failed.png
+#     mkdir -p logs
+#     agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_login-failed.png"
 #     agent-browser close
 #     exit 1
 # fi
