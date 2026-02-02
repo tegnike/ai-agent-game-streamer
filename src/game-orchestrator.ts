@@ -53,14 +53,27 @@ export class GameOrchestrator {
     // 4. Send play command and wait for game completion concurrently
     //    This prevents UnhandledPromiseRejection when session.error fires
     //    before sendPlayCommand resolves.
-    const [promptResult] = await Promise.allSettled([
+    const [promptResult, gameResult] = await Promise.allSettled([
       this.sessionManager.sendPlayCommand(sessionId, game),
       gameComplete,
     ]);
 
-    // If prompt itself failed, throw that error
+    // Game error (from event monitor) takes priority
+    if (gameResult.status === "rejected") {
+      throw gameResult.reason;
+    }
+
+    // If game completed successfully, prompt timeout is expected for long games
     if (promptResult.status === "rejected") {
-      throw promptResult.reason;
+      const isTimeout =
+        promptResult.reason?.cause?.code === "UND_ERR_HEADERS_TIMEOUT";
+      if (isTimeout) {
+        logger.info(
+          "Prompt request timed out (expected for long-running games)",
+        );
+      } else {
+        throw promptResult.reason;
+      }
     }
 
     // 6. Cleanup

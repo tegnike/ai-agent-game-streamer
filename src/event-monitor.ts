@@ -88,6 +88,13 @@ export class EventMonitor {
         }
         break;
 
+      case "reasoning":
+        // Stream agent's reasoning/thinking output
+        if (delta) {
+          this.output(delta);
+        }
+        break;
+
       case "tool": {
         const toolPart = part as {
           type: "tool";

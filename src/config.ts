@@ -21,6 +21,8 @@ type ProviderPreset = {
   defaultModel: string;
   smallModel: string;
   envKey: string;
+  npm?: string;
+  baseURL?: string;
 };
 
 const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
@@ -38,6 +40,13 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
     defaultModel: "gemini-2.5-pro",
     smallModel: "gemini-2.5-flash",
     envKey: "GOOGLE_API_KEY",
+  },
+  zai: {
+    defaultModel: "glm-4.7",
+    smallModel: "glm-4.7-flash",
+    envKey: "ZAI_API_KEY",
+    npm: "@ai-sdk/openai-compatible",
+    baseURL: "https://api.z.ai/api/coding/paas/v4",
   },
 };
 
@@ -100,13 +109,22 @@ export function buildModelConfig(
     smallModel = preset.smallModel;
   }
 
+  const preset = PROVIDER_PRESETS[provider];
+  const providerConfig: Record<string, unknown> = {
+    env: [preset.envKey],
+  };
+  if (preset.npm) {
+    providerConfig.npm = preset.npm;
+  }
+  if (preset.baseURL) {
+    providerConfig.options = { baseURL: preset.baseURL };
+  }
+
   return {
     model: `${provider}/${model}`,
     small_model: `${provider}/${smallModel}`,
     provider: {
-      [provider]: {
-        env: [PROVIDER_PRESETS[provider].envKey],
-      },
+      [provider]: providerConfig,
     },
-  };
+  } as Config;
 }
