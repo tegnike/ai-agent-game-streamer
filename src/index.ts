@@ -2,6 +2,7 @@ import { startServer, connectToServer } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
+import { buildModelConfig } from "./config.js";
 import type { GameId } from "./types.js";
 
 async function main() {
@@ -9,9 +10,21 @@ async function main() {
   const loopMode = args.includes("--loop");
   const connectMode = args.includes("--connect");
   const gameArg = args.find((a) => a.startsWith("--game="));
+  const providerArg = args.find((a) => a.startsWith("--provider="));
+  const modelArg = args.find((a) => a.startsWith("--model="));
+
+  const providerName = providerArg?.split("=")[1];
+  const modelName = modelArg?.split("=")[1];
+  const modelConfig = buildModelConfig(providerName, modelName);
+
+  if (modelConfig) {
+    logger.info(`Using model: ${modelConfig.model}`);
+  }
 
   // Start or connect to OpenCode server
-  const client = connectMode ? connectToServer() : await startServer();
+  const client = connectMode
+    ? connectToServer()
+    : await startServer(modelConfig);
 
   // Verify connection
   const configResult = await client.config.get();

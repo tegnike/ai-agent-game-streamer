@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { createOpencode, createOpencodeClient } from "@opencode-ai/sdk";
+import type { Config } from "@opencode-ai/sdk";
 import { OPENCODE_CONFIG } from "./config.js";
 import { logger } from "./utils/logger.js";
 
@@ -16,7 +17,7 @@ async function killPort(port: number): Promise<void> {
   }
 }
 
-export async function startServer() {
+export async function startServer(configOverride?: Config) {
   logger.info(
     `Starting OpenCode server at ${OPENCODE_CONFIG.hostname}:${OPENCODE_CONFIG.port}...`,
   );
@@ -27,6 +28,7 @@ export async function startServer() {
     hostname: OPENCODE_CONFIG.hostname,
     port: OPENCODE_CONFIG.port,
     timeout: OPENCODE_CONFIG.timeout,
+    config: configOverride,
   });
   logger.info("OpenCode server started");
   return client;
