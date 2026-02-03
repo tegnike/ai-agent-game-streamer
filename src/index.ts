@@ -55,14 +55,25 @@ async function main() {
 
     const orchestratorRef = { current: null as GameOrchestrator | null };
 
-    // Comment ingester + YouTube adapter (lazy-initialized on connect)
+    // Comment ingester + adapters (lazy-initialized on connect)
     type _CommentIngester = import("./stream/comment-ingester.js").CommentIngester;
     type _YouTubeAdapter = import("./stream/comments/youtube-adapter.js").YouTubeAdapter;
+    type _OneCommeAdapter = import("./stream/comments/onecomme-adapter.js").OneCommeAdapter;
     type _VisualBridge = import("./stream/visual-bridge.js").VisualBridge;
 
     let commentIngester: _CommentIngester | null = null;
     let youtubeAdapter: _YouTubeAdapter | null = null;
+    let onecommeAdapter: _OneCommeAdapter | null = null;
     let visualBridge: _VisualBridge | null = null;
+
+    const ensureIngester = async () => {
+      if (!commentIngester) {
+        const { CommentIngester } = await import("./stream/comment-ingester.js");
+        commentIngester = new CommentIngester(eventHub!);
+        await commentIngester.start();
+      }
+      return commentIngester;
+    };
 
     streamServer = new StreamServer(eventHub, streamManager, {
       port,
@@ -82,23 +93,39 @@ async function main() {
       onYouTubeConnect: async (config) => {
         try {
           const { YouTubeAdapter } = await import("./stream/comments/youtube-adapter.js");
-          const { CommentIngester } = await import("./stream/comment-ingester.js");
           youtubeAdapter = new YouTubeAdapter();
           await youtubeAdapter.connect(config);
-          commentIngester = new CommentIngester(eventHub!);
-          commentIngester.addAdapter(youtubeAdapter);
-          await commentIngester.start();
+          const ingester = await ensureIngester();
+          ingester.addAdapter(youtubeAdapter);
           return { success: true };
         } catch (err) {
           return { success: false, error: String(err) };
         }
       },
       onYouTubeDisconnect: async () => {
-        commentIngester?.stop();
-        commentIngester = null;
         if (youtubeAdapter) {
+          commentIngester?.removeAdapter("youtube");
           await youtubeAdapter.disconnect();
           youtubeAdapter = null;
+        }
+      },
+      onOneCommeConnect: async (config) => {
+        try {
+          const { OneCommeAdapter } = await import("./stream/comments/onecomme-adapter.js");
+          onecommeAdapter = new OneCommeAdapter();
+          await onecommeAdapter.connect(config);
+          const ingester = await ensureIngester();
+          ingester.addAdapter(onecommeAdapter);
+          return { success: true };
+        } catch (err) {
+          return { success: false, error: String(err) };
+        }
+      },
+      onOneCommeDisconnect: async () => {
+        if (onecommeAdapter) {
+          commentIngester?.removeAdapter("onecomme");
+          await onecommeAdapter.disconnect();
+          onecommeAdapter = null;
         }
       },
       onVisualConfigure: async (config) => {

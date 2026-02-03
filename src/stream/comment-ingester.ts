@@ -19,6 +19,24 @@ export class CommentIngester {
 
   addAdapter(adapter: CommentAdapter): void {
     this.adapters.push(adapter);
+    // 既に running 中なら追加されたアダプタのポーリングも開始
+    if (this.running && adapter.isConnected()) {
+      this.schedulePoll(adapter, 0);
+    }
+  }
+
+  removeAdapter(platform: string): void {
+    const idx = this.adapters.findIndex((a) => a.platform === platform);
+    if (idx >= 0) {
+      this.adapters.splice(idx, 1);
+      const timer = this.pollTimers.get(platform);
+      if (timer) {
+        clearTimeout(timer);
+        this.pollTimers.delete(platform);
+      }
+      this.errorCounts.delete(platform);
+      logger.info(`Adapter removed: ${platform}`);
+    }
   }
 
   async start(): Promise<void> {

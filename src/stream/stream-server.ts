@@ -38,6 +38,8 @@ export class StreamServer {
   private onCommentDismiss?: (commentId: string) => void;
   private onYouTubeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   private onYouTubeDisconnect?: () => Promise<void>;
+  private onOneCommeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+  private onOneCommeDisconnect?: () => Promise<void>;
   private onVisualConfigure?: (config: { endpoint: string; batchInterval?: number }) => void | Promise<void>;
 
   constructor(
@@ -51,6 +53,8 @@ export class StreamServer {
       onCommentDismiss?: (commentId: string) => void;
       onYouTubeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
       onYouTubeDisconnect?: () => Promise<void>;
+      onOneCommeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+      onOneCommeDisconnect?: () => Promise<void>;
       onVisualConfigure?: (config: { endpoint: string; batchInterval?: number }) => void | Promise<void>;
     } = {},
   ) {
@@ -63,6 +67,8 @@ export class StreamServer {
     this.onCommentDismiss = options.onCommentDismiss;
     this.onYouTubeConnect = options.onYouTubeConnect;
     this.onYouTubeDisconnect = options.onYouTubeDisconnect;
+    this.onOneCommeConnect = options.onOneCommeConnect;
+    this.onOneCommeDisconnect = options.onOneCommeDisconnect;
     this.onVisualConfigure = options.onVisualConfigure;
 
     this.wsHandler = new WSHandler(hub, streamManager, {
@@ -274,6 +280,24 @@ export class StreamServer {
           case "/api/comments/youtube/disconnect": {
             if (this.onYouTubeDisconnect) {
               await this.onYouTubeDisconnect();
+            }
+            this.sendJson(res, 200, { success: true });
+            return;
+          }
+
+          case "/api/comments/onecomme/connect": {
+            if (!this.onOneCommeConnect) {
+              this.sendJson(res, 501, { error: "OneComme integration not configured" });
+              return;
+            }
+            const result = await this.onOneCommeConnect(body);
+            this.sendJson(res, result.success ? 200 : 400, result);
+            return;
+          }
+
+          case "/api/comments/onecomme/disconnect": {
+            if (this.onOneCommeDisconnect) {
+              await this.onOneCommeDisconnect();
             }
             this.sendJson(res, 200, { success: true });
             return;

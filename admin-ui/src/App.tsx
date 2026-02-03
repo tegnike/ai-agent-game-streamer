@@ -7,6 +7,7 @@ import { AgentMonitor } from "./components/AgentMonitor";
 import { MessagePanel } from "./components/MessagePanel";
 import { CommentPanel } from "./components/CommentPanel";
 import { YouTubePanel } from "./components/YouTubePanel";
+import { OneCommePanel } from "./components/OneCommePanel";
 import { VisualBridgePanel } from "./components/VisualBridgePanel";
 import { EventLog } from "./components/EventLog";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -45,6 +46,7 @@ export default function App() {
           <MessagePanel sendCommand={sendCommand} />
           <CommentPanel sendCommand={sendCommand} />
           <YouTubePanel />
+          <OneCommePanel />
           <VisualBridgePanel />
         </div>
         <ResizeHandle direction="horizontal" onResize={handleLeftResize} />
