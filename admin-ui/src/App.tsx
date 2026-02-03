@@ -6,8 +6,7 @@ import { GameSelector } from "./components/GameSelector";
 import { AgentMonitor } from "./components/AgentMonitor";
 import { MessagePanel } from "./components/MessagePanel";
 import { CommentPanel } from "./components/CommentPanel";
-import { YouTubePanel } from "./components/YouTubePanel";
-import { OneCommePanel } from "./components/OneCommePanel";
+import { CommentSourcePanel } from "./components/CommentSourcePanel";
 import { VisualBridgePanel } from "./components/VisualBridgePanel";
 import { EventLog } from "./components/EventLog";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -45,8 +44,7 @@ export default function App() {
           <GameSelector />
           <MessagePanel sendCommand={sendCommand} />
           <CommentPanel sendCommand={sendCommand} />
-          <YouTubePanel />
-          <OneCommePanel />
+          <CommentSourcePanel />
           <VisualBridgePanel />
         </div>
         <ResizeHandle direction="horizontal" onResize={handleLeftResize} />

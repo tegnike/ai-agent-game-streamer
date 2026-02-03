@@ -576,15 +576,50 @@ select {
 .log-error .log-type { color: var(--red); }
 .log-system .log-type { color: var(--text-muted); }
 
-/* YouTube Panel / Visual Panel */
-.youtube-form,
+/* Comment Source Tabs */
+.source-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.source-tab {
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  background: none;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.source-tab:hover {
+  color: var(--text);
+}
+
+.source-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-indicator {
+  color: var(--green);
+  margin-left: 4px;
+  font-size: 8px;
+}
+
+/* Source Form / Visual Form */
+.source-form,
 .visual-form {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.youtube-form input,
+.source-form input,
 .visual-form input {
   padding: 6px 8px;
   border: 1px solid var(--border);
@@ -595,13 +630,13 @@ select {
   font-family: inherit;
 }
 
-.youtube-form input:focus,
+.source-form input:focus,
 .visual-form input:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.youtube-or {
+.source-or {
   text-align: center;
   color: var(--text-muted);
   font-size: 11px;
