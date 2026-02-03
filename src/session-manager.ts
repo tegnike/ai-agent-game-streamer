@@ -1,5 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type { GameConfig, GameId, StreamingState } from "./types.js";
+import { buildPlayPrompt } from "./prompts/play-game.js";
 import { logger } from "./utils/logger.js";
 
 export class SessionManager {
@@ -30,7 +31,7 @@ export class SessionManager {
   }
 
   async sendPlayCommand(sessionId: string, game: GameConfig): Promise<void> {
-    const prompt = this.buildPlayPrompt(game);
+    const prompt = buildPlayPrompt(game);
     logger.info(`Sending play command for ${game.nameJa}...`);
 
     await this.client.session.prompt({
@@ -41,28 +42,19 @@ export class SessionManager {
     });
   }
 
-  private buildPlayPrompt(game: GameConfig): string {
-    return [
-      `ゲームをプレイしてください: ${game.nameJa} (${game.name})`,
-      ``,
-      `手順:`,
-      `1. まず samples/${game.directory}/README.md を読んでゲームのAPIを確認してください`,
-      `2. ポート${game.port}でHTTPサーバーが起動済みです`,
-      `3. agent-browser --headed open http://127.0.0.1:${game.port}/index.html でゲームを開いてください`,
-      `4. スクリーンショットで初期状態を確認してください`,
-      `5. ゲームをプレイしてください（各手の間に0.5秒の間隔を空けること）`,
-      `6. ゲーム終了後、結果を報告してください`,
-      ``,
-      `重要:`,
-      `- --headed フラグを必ず使用してください`,
-      `- ソースコード（script.js, style.css, index.html）は読まないでください`,
-      `- README.md のみ参照可能です`,
-      `- スクリーンショットは必ず logs/ ディレクトリにタイムスタンプ付きで保存してください`,
-      `  形式: logs/YYYYMMDD-HHMMSS_名前.png （例: logs/20260202-143025_initial.png）`,
-      `  シェルでの生成例: agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"`,
-      `- 各手を打つ前に、盤面の状況分析と、なぜその手を選んだのか理由を必ず日本語で説明してください`,
-      `  （例: 「角を取れるので(0,0)に打ちます」「相手の石を多く裏返せる(3,5)を選びます」）`,
-    ].join("\n");
+  async injectMessage(text: string): Promise<void> {
+    const sessionId = this.state.sessionId;
+    if (!sessionId) {
+      logger.error("Cannot inject message: no active session");
+      return;
+    }
+    logger.info(`Injecting message to session ${sessionId}: ${text.substring(0, 50)}...`);
+    await this.client.session.promptAsync({
+      path: { id: sessionId },
+      body: {
+        parts: [{ type: "text", text }],
+      },
+    });
   }
 
   async abortSession(sessionId: string): Promise<void> {

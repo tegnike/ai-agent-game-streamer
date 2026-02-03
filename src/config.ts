@@ -15,6 +15,14 @@ export const GAME_SERVER_PORT = 8888;
 export const DEFAULT_MOVE_DELAY_MS = 500;
 export const AGENT_NAME = "game-streamer";
 
+// --- Stream Server ---
+export const STREAM_SERVER_PORT = 3000;
+export const DEFAULT_PAUSE_BETWEEN_GAMES = 5000;
+export const DEFAULT_VISUAL_BATCH_INTERVAL = 500;
+
+/** Ports that killPort() is allowed to operate on */
+export const MANAGED_PORTS = [GAME_SERVER_PORT, OPENCODE_CONFIG.port] as const;
+
 // --- LLM Provider Presets ---
 
 type ProviderPreset = {
@@ -50,12 +58,14 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
 };
 
+export const DEFAULT_PROVIDER = "zai";
+
 export function buildModelConfig(
   providerName?: string,
   modelName?: string,
 ): Config | undefined {
   if (!providerName && !modelName) {
-    return undefined;
+    providerName = DEFAULT_PROVIDER;
   }
 
   let provider: string;

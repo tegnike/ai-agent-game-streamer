@@ -1,6 +1,6 @@
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import path from "node:path";
-import { PROJECT_ROOT } from "../config.js";
+import { PROJECT_ROOT, MANAGED_PORTS } from "../config.js";
 import { logger } from "./logger.js";
 
 export class ProcessManager {
@@ -40,6 +40,12 @@ export class ProcessManager {
   }
 
   private async killPort(port: number): Promise<void> {
+    // Safety check: only kill processes on managed ports
+    if (!(MANAGED_PORTS as readonly number[]).includes(port)) {
+      logger.debug(`Skipping killPort(${port}): not a managed port`);
+      return;
+    }
+
     try {
       const pid = execSync(`lsof -t -i:${port} 2>/dev/null`)
         .toString()

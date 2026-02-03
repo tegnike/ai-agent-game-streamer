@@ -8,14 +8,20 @@
     "dev": "tsx src/index.ts",
     "play": "tsx src/index.ts --game",
     "stream": "tsx src/index.ts --loop",
+    "stream:managed": "tsx src/index.ts --admin --loop",
+    "admin:dev": "cd admin-ui && npm run dev",
+    "admin:build": "cd admin-ui && npm run build",
+    "test": "tsx --test src/stream/__tests__/*.test.ts",
     "build": "tsc"
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",
-    "@playwright/test": "^1.58.1"
+    "@playwright/test": "^1.58.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"
   }
