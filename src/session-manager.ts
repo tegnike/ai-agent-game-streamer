@@ -6,6 +6,7 @@ import { logger } from "./utils/logger.js";
 export class SessionManager {
   private client: OpencodeClient;
   private state: StreamingState;
+  private promptAbortController: AbortController | null = null;
 
   constructor(client: OpencodeClient) {
     this.client = client;
@@ -34,12 +35,27 @@ export class SessionManager {
     const prompt = buildPlayPrompt(game, browserOptions);
     logger.info(`Sending play command for ${game.nameJa}...`);
 
-    await this.client.session.prompt({
-      path: { id: sessionId },
-      body: {
-        parts: [{ type: "text", text: prompt }],
-      },
-    });
+    this.promptAbortController = new AbortController();
+    try {
+      await this.client.session.prompt({
+        path: { id: sessionId },
+        body: {
+          parts: [{ type: "text", text: prompt }],
+        },
+        signal: this.promptAbortController.signal,
+      } as never);
+    } finally {
+      this.promptAbortController = null;
+    }
+  }
+
+  /**
+   * Cancel the in-flight prompt HTTP request (client-side).
+   * This disconnects the HTTP connection so the server can detect the client left.
+   */
+  cancelPrompt(): void {
+    this.promptAbortController?.abort();
+    this.promptAbortController = null;
   }
 
   async injectMessage(text: string): Promise<void> {

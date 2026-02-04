@@ -121,18 +121,24 @@ export class GameOrchestrator {
       );
     });
 
-    // 4. Send play command and wait for game completion concurrently
-    //    This prevents UnhandledPromiseRejection when session.error fires
-    //    before sendPlayCommand resolves.
-    const [promptResult, gameResult] = await Promise.allSettled([
-      this.sessionManager.sendPlayCommand(sessionId, game, {
-        browserPrefix: this.browserManager.getAgentBrowserPrefix(),
-        gameBaseUrl: `http://127.0.0.1:${GAME_SERVER_PORT}`,
-      }),
-      gameComplete,
-    ]);
+    // 4. Send play command concurrently (don't await directly — it blocks until agent finishes)
+    const sendPromise = this.sessionManager.sendPlayCommand(sessionId, game, {
+      browserPrefix: this.browserManager.getAgentBrowserPrefix(),
+      gameBaseUrl: `http://127.0.0.1:${GAME_SERVER_PORT}`,
+    });
+    // Suppress unhandled rejection so we can abandon this promise on abort
+    sendPromise.catch(() => {});
 
-    // If the game was externally aborted (pause/skip/stop), let the caller handle cleanup
+    // 5. Wait for game completion (idle, error, or external abort)
+    let gameError: unknown = null;
+    try {
+      await gameComplete;
+    } catch (err) {
+      gameError = err;
+    }
+
+    // If the game was externally aborted (pause/skip/stop), return immediately
+    // without waiting for sendPlayCommand which may hang after session abort
     if (this.gameAborted) {
       logger.info(`Game aborted: ${game.nameJa}`);
       logger.info(`Log saved: ${logPath}`);
@@ -140,20 +146,22 @@ export class GameOrchestrator {
     }
 
     // Game error (from event monitor) takes priority
-    if (gameResult.status === "rejected") {
-      throw gameResult.reason;
+    if (gameError) {
+      throw gameError;
     }
 
-    // If game completed successfully, prompt timeout is expected for long games
-    if (promptResult.status === "rejected") {
+    // Game completed normally — wait for prompt to settle
+    try {
+      await sendPromise;
+    } catch (err: unknown) {
       const isTimeout =
-        promptResult.reason?.cause?.code === "UND_ERR_HEADERS_TIMEOUT";
+        (err as { cause?: { code?: string } })?.cause?.code === "UND_ERR_HEADERS_TIMEOUT";
       if (isTimeout) {
         logger.info(
           "Prompt request timed out (expected for long-running games)",
         );
       } else {
-        throw promptResult.reason;
+        throw err;
       }
     }
 
@@ -203,6 +211,7 @@ export class GameOrchestrator {
 
     logger.info(`Aborting active game session: ${sessionId}`);
     this.gameAborted = true;
+    this.sessionManager.cancelPrompt();
     this.eventMonitor.stopMonitoring();
 
     try {
