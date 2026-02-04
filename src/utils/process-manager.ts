@@ -6,10 +6,49 @@ import { logger } from "./logger.js";
 export class ProcessManager {
   private serverProcess: ChildProcess | null = null;
 
+  /**
+   * Start a persistent HTTP server from the games/ root directory.
+   * All games are accessible at http://127.0.0.1:<port>/<game>/index.html
+   */
+  async startPersistentServer(port: number): Promise<number> {
+    if (this.isRunning()) {
+      logger.info("HTTP server already running, skipping start");
+      return this.serverProcess!.pid!;
+    }
+
+    await this.killPort(port);
+
+    const gamesRoot = path.join(PROJECT_ROOT, "games");
+
+    this.serverProcess = spawn(
+      "python3",
+      ["-m", "http.server", String(port)],
+      {
+        cwd: gamesRoot,
+        stdio: "pipe",
+        detached: false,
+      },
+    );
+
+    this.serverProcess.on("error", (err) => {
+      logger.error("HTTP server process error:", err);
+    });
+
+    this.serverProcess.on("exit", (code) => {
+      logger.info(`HTTP server exited with code ${code}`);
+      this.serverProcess = null;
+    });
+
+    await this.waitForPort(port, 5000);
+    logger.info(`Persistent HTTP server started on port ${port} from games/ (pid: ${this.serverProcess.pid})`);
+
+    return this.serverProcess.pid!;
+  }
+
   async startGameServer(gameDir: string, port: number): Promise<number> {
     await this.killPort(port);
 
-    const gamePath = path.join(PROJECT_ROOT, "samples", gameDir);
+    const gamePath = path.join(PROJECT_ROOT, "games", gameDir);
 
     this.serverProcess = spawn(
       "python3",
@@ -29,6 +68,10 @@ export class ProcessManager {
     logger.info(`HTTP server started on port ${port} (pid: ${this.serverProcess.pid})`);
 
     return this.serverProcess.pid!;
+  }
+
+  isRunning(): boolean {
+    return this.serverProcess !== null && !this.serverProcess.killed;
   }
 
   async stopGameServer(): Promise<void> {

@@ -54,6 +54,7 @@ const DEFAULT_STATE: StreamState = {
   config: { mode: "single" },
   startedAt: null,
   error: null,
+  browser: { mode: "none", running: false, launchedByUs: false },
 };
 
 const MAX_ACTIVITIES = 200;

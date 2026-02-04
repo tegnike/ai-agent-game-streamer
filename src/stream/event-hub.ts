@@ -12,6 +12,7 @@ import type {
   ViewerComment,
   CommentStatus,
   GameEvent,
+  BrowserState,
 } from "./types.js";
 import type { GameId, GameConfig } from "../types.js";
 
@@ -38,6 +39,7 @@ export class EventHub {
     config: { mode: "single" },
     startedAt: null,
     error: null,
+    browser: { mode: "none", running: false, launchedByUs: false },
   };
 
   // --- Event pub/sub ---
@@ -122,6 +124,10 @@ export class EventHub {
 
   setAgentSpeech(text: string | null): void {
     this.state.agentSpeech = text;
+  }
+
+  setBrowserState(browser: BrowserState): void {
+    this.state.browser = { ...browser };
   }
 
   // --- Agent Activity buffer ---

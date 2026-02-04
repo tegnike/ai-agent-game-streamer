@@ -41,6 +41,9 @@ export class StreamServer {
   private onOneCommeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   private onOneCommeDisconnect?: () => Promise<void>;
   private onVisualConfigure?: (config: { endpoint: string; batchInterval?: number }) => void | Promise<void>;
+  private onBrowserLaunch?: () => Promise<{ success: boolean; error?: string }>;
+  private onBrowserLaunchCDP?: (port: number) => Promise<{ success: boolean; error?: string }>;
+  private onBrowserClose?: () => Promise<void>;
 
   constructor(
     hub: EventHub,
@@ -56,6 +59,9 @@ export class StreamServer {
       onOneCommeConnect?: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
       onOneCommeDisconnect?: () => Promise<void>;
       onVisualConfigure?: (config: { endpoint: string; batchInterval?: number }) => void | Promise<void>;
+      onBrowserLaunch?: () => Promise<{ success: boolean; error?: string }>;
+      onBrowserLaunchCDP?: (port: number) => Promise<{ success: boolean; error?: string }>;
+      onBrowserClose?: () => Promise<void>;
     } = {},
   ) {
     this.hub = hub;
@@ -70,6 +76,9 @@ export class StreamServer {
     this.onOneCommeConnect = options.onOneCommeConnect;
     this.onOneCommeDisconnect = options.onOneCommeDisconnect;
     this.onVisualConfigure = options.onVisualConfigure;
+    this.onBrowserLaunch = options.onBrowserLaunch;
+    this.onBrowserLaunchCDP = options.onBrowserLaunchCDP;
+    this.onBrowserClose = options.onBrowserClose;
 
     this.wsHandler = new WSHandler(hub, streamManager, {
       onAdminMessage: this.onAdminMessage,
@@ -171,6 +180,10 @@ export class StreamServer {
 
         case "/api/comments":
           this.sendJson(res, 200, this.hub.getComments());
+          return;
+
+        case "/api/browser/status":
+          this.sendJson(res, 200, this.hub.getState().browser);
           return;
 
         case "/api/activities": {
@@ -299,6 +312,41 @@ export class StreamServer {
             if (this.onOneCommeDisconnect) {
               await this.onOneCommeDisconnect();
             }
+            this.sendJson(res, 200, { success: true });
+            return;
+          }
+
+          case "/api/browser/launch": {
+            if (!this.onBrowserLaunch) {
+              this.sendJson(res, 501, { error: "Browser launch not configured" });
+              return;
+            }
+            const result = await this.onBrowserLaunch();
+            this.sendJson(res, result.success ? 200 : 400, result);
+            return;
+          }
+
+          case "/api/browser/launch-cdp": {
+            const { port: cdpPort } = body as { port: number };
+            if (!cdpPort) {
+              this.sendJson(res, 400, { error: "port is required" });
+              return;
+            }
+            if (!this.onBrowserLaunchCDP) {
+              this.sendJson(res, 501, { error: "Browser CDP not configured" });
+              return;
+            }
+            const cdpResult = await this.onBrowserLaunchCDP(cdpPort);
+            this.sendJson(res, cdpResult.success ? 200 : 400, cdpResult);
+            return;
+          }
+
+          case "/api/browser/close": {
+            if (!this.onBrowserClose) {
+              this.sendJson(res, 501, { error: "Browser close not configured" });
+              return;
+            }
+            await this.onBrowserClose();
             this.sendJson(res, 200, { success: true });
             return;
           }

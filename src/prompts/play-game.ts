@@ -1,10 +1,21 @@
 import type { GameConfig } from "../types.js";
 
+export interface PlayPromptOptions {
+  browserPrefix?: string;
+  gameBaseUrl?: string;
+}
+
 /**
  * ゲームプレイ配信用プロンプトを生成する。
  * このファイルを編集することで、配信者のキャラクターや発話スタイルを調整できます。
  */
-export function buildPlayPrompt(game: GameConfig): string {
+export function buildPlayPrompt(game: GameConfig, options?: PlayPromptOptions): string {
+  const prefix = options?.browserPrefix ?? "";
+  const baseUrl = options?.gameBaseUrl ?? `http://127.0.0.1:${game.port}`;
+  const gameUrl = `${baseUrl}/${game.directory}/index.html`;
+  const lobbyUrl = `${baseUrl}/index.html`;
+  const cmd = prefix ? `agent-browser ${prefix}` : "agent-browser";
+
   return `\
 あなたは「ニケ」というAI VTuberです。${game.nameJa} (${game.name}) をプレイ配信してください。
 
@@ -51,19 +62,22 @@ export function buildPlayPrompt(game: GameConfig): string {
 
 ## 手順
 
-1. まず samples/${game.directory}/README.md を読んでゲームのAPIを確認してください
+1. まず games/${game.directory}/README.md を読んでゲームのAPIを確認してください
 2. ポート${game.port}でHTTPサーバーが起動済みです
-3. agent-browser --headed open http://127.0.0.1:${game.port}/index.html でゲームを開いてください
+3. ${cmd} open ${gameUrl} でゲームページに移動してください
 4. スクリーンショットで初期状態を確認し、ニケとして配信の挨拶をしてください
 5. ゲームをプレイしてください（各手の間に0.5秒の間隔を空けること）
 6. ゲーム終了後、ニケとして結果を振り返り、視聴者にお礼を言ってください
+7. ゲーム終了後、${cmd} open ${lobbyUrl} でゲーム一覧に戻ってください
 
 ## 重要な制約
 
-- --headed フラグを必ず使用してください
+- ブラウザは既に起動済みです。新しいブラウザウィンドウを開かないでください
+- agent-browser close は絶対に実行しないでください（ブラウザは複数ゲーム間で共有されています）
+- --headed フラグは不要です（ブラウザは既にheadedモードで起動済み）
 - ソースコード（script.js, style.css, index.html）は読まないでください
 - README.md のみ参照可能です
 - スクリーンショットは必ず logs/ ディレクトリにタイムスタンプ付きで保存してください
   形式: logs/YYYYMMDD-HHMMSS_名前.png （例: logs/20260202-143025_initial.png）
-  シェルでの生成例: agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"`;
+  シェルでの生成例: ${cmd} screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"`;
 }

@@ -20,6 +20,9 @@ export class WSHandler {
   private onAdminMessage?: (text: string) => void;
   private onCommentQueue?: (commentId: string) => void;
   private onCommentDismiss?: (commentId: string) => void;
+  private onBrowserLaunch?: () => void;
+  private onBrowserLaunchCDP?: (port: number) => void;
+  private onBrowserClose?: () => void;
 
   constructor(
     hub: EventHub,
@@ -28,6 +31,9 @@ export class WSHandler {
       onAdminMessage?: (text: string) => void;
       onCommentQueue?: (commentId: string) => void;
       onCommentDismiss?: (commentId: string) => void;
+      onBrowserLaunch?: () => void;
+      onBrowserLaunchCDP?: (port: number) => void;
+      onBrowserClose?: () => void;
     },
   ) {
     this.hub = hub;
@@ -35,6 +41,9 @@ export class WSHandler {
     this.onAdminMessage = callbacks?.onAdminMessage;
     this.onCommentQueue = callbacks?.onCommentQueue;
     this.onCommentDismiss = callbacks?.onCommentDismiss;
+    this.onBrowserLaunch = callbacks?.onBrowserLaunch;
+    this.onBrowserLaunchCDP = callbacks?.onBrowserLaunchCDP;
+    this.onBrowserClose = callbacks?.onBrowserClose;
   }
 
   start(): void {
@@ -168,6 +177,18 @@ export class WSHandler {
         this.onCommentDismiss?.(command.commentId);
         break;
 
+      case "browser:launch":
+        this.onBrowserLaunch?.();
+        break;
+
+      case "browser:launch-cdp":
+        this.onBrowserLaunchCDP?.(command.port);
+        break;
+
+      case "browser:close":
+        this.onBrowserClose?.();
+        break;
+
       default:
         logger.error("Unknown command type:", (command as { type: string }).type);
     }
@@ -228,6 +249,11 @@ export class WSHandler {
       case "comment:received":
       case "comment:updated":
         return { type: "comment:updated", data: event.data as never };
+
+      case "browser:launched":
+      case "browser:closed":
+      case "browser:error":
+        return { type: "state:update", data: { browser: this.hub.getState().browser } };
 
       default:
         return null;

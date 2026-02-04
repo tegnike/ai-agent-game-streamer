@@ -29,6 +29,15 @@ export interface StreamConfig {
   commentsEnabled?: boolean;
 }
 
+export type BrowserMode = "daemon" | "cdp" | "none";
+
+export interface BrowserState {
+  mode: BrowserMode;
+  running: boolean;
+  cdpPort?: number;
+  launchedByUs: boolean;
+}
+
 export interface StreamState {
   phase: StreamPhase;
   mode: StreamMode;
@@ -42,6 +51,7 @@ export interface StreamState {
   config: StreamConfig;
   startedAt: number | null;
   error: string | null;
+  browser: BrowserState;
 }
 
 export type AgentActivityType = "text" | "reasoning" | "tool";

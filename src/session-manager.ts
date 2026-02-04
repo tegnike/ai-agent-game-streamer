@@ -1,6 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type { GameConfig, GameId, StreamingState } from "./types.js";
-import { buildPlayPrompt } from "./prompts/play-game.js";
+import { buildPlayPrompt, type PlayPromptOptions } from "./prompts/play-game.js";
 import { logger } from "./utils/logger.js";
 
 export class SessionManager {
@@ -30,8 +30,8 @@ export class SessionManager {
     return sessionId;
   }
 
-  async sendPlayCommand(sessionId: string, game: GameConfig): Promise<void> {
-    const prompt = buildPlayPrompt(game);
+  async sendPlayCommand(sessionId: string, game: GameConfig, browserOptions?: PlayPromptOptions): Promise<void> {
+    const prompt = buildPlayPrompt(game, browserOptions);
     logger.info(`Sending play command for ${game.nameJa}...`);
 
     await this.client.session.prompt({

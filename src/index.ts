@@ -2,11 +2,12 @@ import { startServer, connectToServer } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
-import { buildModelConfig, STREAM_SERVER_PORT } from "./config.js";
+import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT } from "./config.js";
 import type { GameId } from "./types.js";
 import { EventHub } from "./stream/event-hub.js";
 import { StreamManager } from "./stream/stream-manager.js";
 import { StreamServer } from "./stream/stream-server.js";
+import { BrowserManager } from "./utils/browser-manager.js";
 
 function parseArg(args: string[], prefix: string): string | undefined {
   const arg = args.find((a) => a.startsWith(prefix));
@@ -53,6 +54,7 @@ async function main() {
       ? parseInt(adminPortArg, 10)
       : parseInt(process.env.STREAM_PORT ?? "", 10) || STREAM_SERVER_PORT;
 
+    const browserManager = new BrowserManager();
     const orchestratorRef = { current: null as GameOrchestrator | null };
 
     // Comment ingester + adapters (lazy-initialized on connect)
@@ -135,11 +137,42 @@ async function main() {
         visualBridge = new VisualBridge(eventHub!, config);
         visualBridge.start();
       },
+      onBrowserLaunch: async () => {
+        try {
+          const lobbyUrl = `http://127.0.0.1:${GAME_SERVER_PORT}/index.html`;
+          // Ensure HTTP server is running first
+          const pm = orchestratorRef.current?.getProcessManager();
+          if (pm && !pm.isRunning()) {
+            await pm.startPersistentServer(GAME_SERVER_PORT);
+          }
+          await browserManager.launchDaemon(lobbyUrl);
+          eventHub!.setBrowserState(browserManager.getState());
+          eventHub!.emit("browser:launched");
+          return { success: true };
+        } catch (err) {
+          return { success: false, error: String(err) };
+        }
+      },
+      onBrowserLaunchCDP: async (port) => {
+        try {
+          await browserManager.connectCDP(port);
+          eventHub!.setBrowserState(browserManager.getState());
+          eventHub!.emit("browser:launched");
+          return { success: true };
+        } catch (err) {
+          return { success: false, error: String(err) };
+        }
+      },
+      onBrowserClose: async () => {
+        await browserManager.close();
+        eventHub!.setBrowserState(browserManager.getState());
+        eventHub!.emit("browser:closed");
+      },
     });
 
     await streamServer.start();
 
-    const orchestrator = new GameOrchestrator(client, eventHub);
+    const orchestrator = new GameOrchestrator(client, eventHub, browserManager);
     orchestrator.setStreamManager(streamManager);
     orchestratorRef.current = orchestrator;
 
@@ -158,6 +191,7 @@ async function main() {
       logger.info("Shutting down...");
       streamManager!.transition("stopped");
       orchestrator.getEventMonitor().stopMonitoring();
+      await browserManager.close();
       await orchestrator.getProcessManager().stopGameServer();
       await streamServer!.stop();
       process.exit(0);

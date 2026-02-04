@@ -2,24 +2,30 @@ import type { OpencodeClient } from "@opencode-ai/sdk";
 import { SessionManager } from "./session-manager.js";
 import { EventMonitor } from "./event-monitor.js";
 import { ProcessManager } from "./utils/process-manager.js";
+import { BrowserManager } from "./utils/browser-manager.js";
 import { getRandomGame, GAME_REGISTRY } from "./games/game-registry.js";
 import { logger, GameLogger, createGameLogPath } from "./utils/logger.js";
+import { GAME_SERVER_PORT } from "./config.js";
 import type { GameId } from "./types.js";
 import type { EventHub } from "./stream/event-hub.js";
 import type { StreamManager } from "./stream/stream-manager.js";
+
+const LOBBY_URL = `http://127.0.0.1:${GAME_SERVER_PORT}/index.html`;
 
 export class GameOrchestrator {
   private sessionManager: SessionManager;
   private eventMonitor: EventMonitor;
   private processManager: ProcessManager;
+  private browserManager: BrowserManager;
   private eventHub: EventHub | null = null;
   private streamManager: StreamManager | null = null;
   private activeSessionId: string | null = null;
 
-  constructor(client: OpencodeClient, eventHub?: EventHub) {
+  constructor(client: OpencodeClient, eventHub?: EventHub, browserManager?: BrowserManager) {
     this.sessionManager = new SessionManager(client);
     this.eventMonitor = new EventMonitor(client);
     this.processManager = new ProcessManager();
+    this.browserManager = browserManager ?? new BrowserManager();
 
     if (eventHub) {
       this.eventHub = eventHub;
@@ -43,6 +49,31 @@ export class GameOrchestrator {
     return this.processManager;
   }
 
+  getBrowserManager(): BrowserManager {
+    return this.browserManager;
+  }
+
+  /**
+   * Ensure persistent infrastructure is running (HTTP server + browser).
+   * This method is idempotent and safe to call multiple times.
+   */
+  async initPersistent(): Promise<void> {
+    // Start persistent HTTP server from games/ root if not running
+    if (!this.processManager.isRunning()) {
+      await this.processManager.startPersistentServer(GAME_SERVER_PORT);
+    }
+
+    // Detect or launch browser
+    if (!this.browserManager.getState().running) {
+      const detected = await this.browserManager.detectRunning();
+      if (!detected) {
+        await this.browserManager.launchDaemon(LOBBY_URL);
+      }
+      this.eventHub?.setBrowserState(this.browserManager.getState());
+      this.eventHub?.emit("browser:launched");
+    }
+  }
+
   async playSingleGame(gameId: GameId): Promise<void> {
     const game = GAME_REGISTRY[gameId];
     if (!game) throw new Error(`Unknown game: ${gameId}`);
@@ -60,8 +91,8 @@ export class GameOrchestrator {
     this.eventHub?.setCurrentGame(gameId, game);
     this.eventHub?.emit("game:starting", { gameId, gameConfig: game });
 
-    // 1. Start HTTP server
-    await this.processManager.startGameServer(game.directory, game.port);
+    // 1. Ensure persistent infrastructure (idempotent)
+    await this.initPersistent();
 
     // 2. Create OpenCode session
     const sessionId = await this.sessionManager.createGameSession(game);
@@ -87,7 +118,10 @@ export class GameOrchestrator {
     //    This prevents UnhandledPromiseRejection when session.error fires
     //    before sendPlayCommand resolves.
     const [promptResult, gameResult] = await Promise.allSettled([
-      this.sessionManager.sendPlayCommand(sessionId, game),
+      this.sessionManager.sendPlayCommand(sessionId, game, {
+        browserPrefix: this.browserManager.getAgentBrowserPrefix(),
+        gameBaseUrl: `http://127.0.0.1:${GAME_SERVER_PORT}`,
+      }),
       gameComplete,
     ]);
 
@@ -109,10 +143,10 @@ export class GameOrchestrator {
       }
     }
 
-    // 6. Cleanup
+    // 6. Cleanup: navigate back to lobby (don't stop server or close browser)
     this.activeSessionId = null;
     this.eventMonitor.stopMonitoring();
-    await this.processManager.stopGameServer();
+    await this.browserManager.navigate(LOBBY_URL);
     this.eventHub?.addGamePlayed(gameId);
     this.eventHub?.setCurrentGame(null, null);
     this.eventHub?.setSessionId(null);
@@ -135,7 +169,8 @@ export class GameOrchestrator {
       } catch (error) {
         logger.error(`Error playing ${game.name}:`, error);
         this.eventMonitor.stopMonitoring();
-        await this.processManager.stopGameServer();
+        // Check if browser is still alive after error
+        await this.checkBrowserHealth();
       }
 
       // Pause between games
@@ -161,13 +196,35 @@ export class GameOrchestrator {
       logger.error("Failed to abort session:", err);
     }
 
+    // Navigate back to lobby instead of stopping the server
     try {
-      await this.processManager.stopGameServer();
+      await this.browserManager.navigate(LOBBY_URL);
     } catch (err) {
-      logger.error("Failed to stop game server:", err);
+      logger.error("Failed to navigate to lobby:", err);
     }
 
     this.activeSessionId = null;
+  }
+
+  /**
+   * Check if the browser is still alive and attempt relaunch if needed.
+   */
+  private async checkBrowserHealth(): Promise<void> {
+    const isAlive = await this.browserManager.detectRunning();
+    if (!isAlive && this.browserManager.getState().launchedByUs) {
+      logger.info("Browser crashed, relaunching...");
+      try {
+        await this.browserManager.launchDaemon(LOBBY_URL);
+        this.eventHub?.setBrowserState(this.browserManager.getState());
+        this.eventHub?.emit("browser:launched");
+      } catch (err) {
+        logger.error("Failed to relaunch browser:", err);
+        this.eventHub?.emit("browser:error", { error: String(err) });
+      }
+    } else if (!isAlive) {
+      this.eventHub?.setBrowserState(this.browserManager.getState());
+      this.eventHub?.emit("browser:closed");
+    }
   }
 
   /**
@@ -223,7 +280,7 @@ export class GameOrchestrator {
       } catch (error) {
         logger.error(`Error playing ${game.name}:`, error);
         this.eventMonitor.stopMonitoring();
-        await this.processManager.stopGameServer();
+        await this.checkBrowserHealth();
         this.eventHub.setError(String(error));
       }
 

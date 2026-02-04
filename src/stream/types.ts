@@ -47,6 +47,17 @@ export interface ViewerComment {
   timestamp: number;
 }
 
+// --- Browser State ---
+
+export type BrowserMode = "daemon" | "cdp" | "none";
+
+export interface BrowserState {
+  mode: BrowserMode;
+  running: boolean;
+  cdpPort?: number;
+  launchedByUs: boolean;
+}
+
 // --- Stream State ---
 
 export interface StreamState {
@@ -62,6 +73,7 @@ export interface StreamState {
   config: StreamConfig;
   startedAt: number | null;
   error: string | null;
+  browser: BrowserState;
 }
 
 // --- Events ---
@@ -85,7 +97,10 @@ export type StreamEventType =
   | "visual:thought"
   | "visual:speech"
   | "visual:action"
-  | "visual:game_state";
+  | "visual:game_state"
+  | "browser:launched"
+  | "browser:closed"
+  | "browser:error";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -111,7 +126,10 @@ export type AdminCommand =
   | { type: "game:skip" }
   | { type: "admin:message"; text: string }
   | { type: "comment:queue"; commentId: string }
-  | { type: "comment:dismiss"; commentId: string };
+  | { type: "comment:dismiss"; commentId: string }
+  | { type: "browser:launch" }
+  | { type: "browser:launch-cdp"; port: number }
+  | { type: "browser:close" };
 
 export type ServerEvent =
   | { type: "state:full"; data: StreamState }
