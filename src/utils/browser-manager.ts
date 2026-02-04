@@ -56,7 +56,7 @@ export class BrowserManager {
     // Close any stale daemon first
     try {
       execSync("agent-browser close", { timeout: 5000, stdio: "pipe" });
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 1000));
     } catch {
       // No daemon running, that's fine
     }
@@ -81,7 +81,42 @@ export class BrowserManager {
       launchedByUs: true,
     };
 
+    // Wait for daemon to fully initialize before navigating
+    await new Promise((r) => setTimeout(r, 2000));
+
+    // Ensure the target URL is loaded (daemon startup may leave browser on about:blank)
+    await this.ensureNavigation(url);
+
     logger.info("Browser launched successfully");
+  }
+
+  /**
+   * Navigate and verify the browser loaded the target URL.
+   * Retries up to maxRetries times with delay between attempts.
+   */
+  private async ensureNavigation(url: string, maxRetries = 3): Promise<void> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const currentUrl = execSync("agent-browser get url", {
+          timeout: 5000,
+          stdio: "pipe",
+        }).toString().trim();
+
+        if (currentUrl === url) {
+          logger.info(`Browser navigated to target URL`);
+          return;
+        }
+
+        logger.info(`Navigation attempt ${attempt}/${maxRetries} (current: ${currentUrl})`);
+        execSync(`agent-browser open "${url}"`, { timeout: 15000, stdio: "pipe" });
+
+        // Wait for page load
+        await new Promise((r) => setTimeout(r, 2000));
+      } catch (err) {
+        logger.error(`Navigation attempt ${attempt} failed:`, err);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
   }
 
   /**
@@ -122,8 +157,8 @@ export class BrowserManager {
 
     const cmd =
       this.state.mode === "cdp"
-        ? `agent-browser --cdp ${this.state.cdpPort} open ${url}`
-        : `agent-browser open ${url}`;
+        ? `agent-browser --cdp ${this.state.cdpPort} open "${url}"`
+        : `agent-browser open "${url}"`;
 
     try {
       execSync(cmd, { timeout: 15000, stdio: "pipe" });
