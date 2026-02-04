@@ -90,6 +90,7 @@ export class StreamManager {
 
   requestSkip(): void {
     this.skipRequested = true;
+    this.hub.emit("game:skipped");
   }
 
   consumeSkip(): boolean {

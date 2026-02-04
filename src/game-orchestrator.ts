@@ -20,6 +20,8 @@ export class GameOrchestrator {
   private eventHub: EventHub | null = null;
   private streamManager: StreamManager | null = null;
   private activeSessionId: string | null = null;
+  private pausedGameId: GameId | null = null;
+  private gameAborted = false;
 
   constructor(client: OpencodeClient, eventHub?: EventHub, browserManager?: BrowserManager) {
     this.sessionManager = new SessionManager(client);
@@ -78,6 +80,8 @@ export class GameOrchestrator {
     const game = GAME_REGISTRY[gameId];
     if (!game) throw new Error(`Unknown game: ${gameId}`);
 
+    this.gameAborted = false;
+
     // Setup game log file
     const logPath = createGameLogPath(game.name);
     const gameLogger = new GameLogger(logPath);
@@ -111,6 +115,9 @@ export class GameOrchestrator {
         (error) => {
           reject(error);
         },
+        () => {
+          resolve(); // onAbort: resolve to unblock Promise.allSettled
+        },
       );
     });
 
@@ -124,6 +131,13 @@ export class GameOrchestrator {
       }),
       gameComplete,
     ]);
+
+    // If the game was externally aborted (pause/skip/stop), let the caller handle cleanup
+    if (this.gameAborted) {
+      logger.info(`Game aborted: ${game.nameJa}`);
+      logger.info(`Log saved: ${logPath}`);
+      return;
+    }
 
     // Game error (from event monitor) takes priority
     if (gameResult.status === "rejected") {
@@ -180,14 +194,15 @@ export class GameOrchestrator {
   }
 
   /**
-   * Force-abort the currently running game session and clean up resources.
-   * Called when a stop command is received mid-game.
+   * Abort the current OpenCode session without navigation.
+   * Sets gameAborted flag so playSingleGame() exits cleanly.
    */
-  private async abortCurrentGame(): Promise<void> {
+  private async abortSession(): Promise<void> {
     const sessionId = this.activeSessionId;
     if (!sessionId) return;
 
     logger.info(`Aborting active game session: ${sessionId}`);
+    this.gameAborted = true;
     this.eventMonitor.stopMonitoring();
 
     try {
@@ -196,14 +211,26 @@ export class GameOrchestrator {
       logger.error("Failed to abort session:", err);
     }
 
-    // Navigate back to lobby instead of stopping the server
+    this.activeSessionId = null;
+  }
+
+  /**
+   * Force-abort the currently running game session, navigate to lobby, and clean up UI state.
+   * Called when a stop command is received mid-game.
+   */
+  private async abortCurrentGame(): Promise<void> {
+    await this.abortSession();
+
     try {
       await this.browserManager.navigate(LOBBY_URL);
     } catch (err) {
       logger.error("Failed to navigate to lobby:", err);
     }
 
-    this.activeSessionId = null;
+    this.eventHub?.setCurrentGame(null, null);
+    this.eventHub?.setSessionId(null);
+    this.eventHub?.setAgentThought(null);
+    this.eventHub?.setAgentSpeech(null);
   }
 
   /**
@@ -246,6 +273,30 @@ export class GameOrchestrator {
     };
     this.eventHub.on("stream:stopped", onStopped);
 
+    // Listen for pause events to abort session but keep game page visible
+    const onPaused = () => {
+      const currentGame = this.eventHub?.getState().currentGame ?? null;
+      if (currentGame) {
+        this.pausedGameId = currentGame as GameId;
+      }
+      this.abortSession();
+    };
+    this.eventHub.on("stream:paused", onPaused);
+
+    // Listen for skip events to abort current game and continue to next
+    const onSkipped = () => {
+      this.abortSession().then(() => {
+        this.browserManager.navigate(LOBBY_URL).catch((err) => {
+          logger.error("Failed to navigate to lobby on skip:", err);
+        });
+        this.eventHub?.setCurrentGame(null, null);
+        this.eventHub?.setSessionId(null);
+        this.eventHub?.setAgentThought(null);
+        this.eventHub?.setAgentSpeech(null);
+      });
+    };
+    this.eventHub.on("game:skipped", onSkipped);
+
     while (this.streamManager.isRunning()) {
       const phase = this.streamManager.getCurrentPhase();
 
@@ -258,18 +309,23 @@ export class GameOrchestrator {
       // Skip idle/stopped states (shouldn't happen, but safety)
       if (phase === "stopped" || phase === "idle") break;
 
-      // Select next game
-      const state = this.sessionManager.getState();
+      // Select next game (use pausedGameId if resuming from pause)
       let game;
-      if (selectedGames && selectedGames.length > 0) {
-        const available = selectedGames.filter(
-          (id) => !state.gamesPlayed.includes(id),
-        );
-        const pick = available.length > 0 ? available : selectedGames;
-        const gameId = pick[Math.floor(Math.random() * pick.length)];
-        game = GAME_REGISTRY[gameId];
+      if (this.pausedGameId) {
+        game = GAME_REGISTRY[this.pausedGameId];
+        this.pausedGameId = null;
       } else {
-        game = getRandomGame(state.gamesPlayed);
+        const state = this.sessionManager.getState();
+        if (selectedGames && selectedGames.length > 0) {
+          const available = selectedGames.filter(
+            (id) => !state.gamesPlayed.includes(id),
+          );
+          const pick = available.length > 0 ? available : selectedGames;
+          const gameId = pick[Math.floor(Math.random() * pick.length)];
+          game = GAME_REGISTRY[gameId];
+        } else {
+          game = getRandomGame(state.gamesPlayed);
+        }
       }
 
       // Transition to playing
@@ -287,7 +343,12 @@ export class GameOrchestrator {
       // Check if skip was requested (consume it)
       this.streamManager.consumeSkip();
 
-      // Check mode: single game stops after one
+      // If game was paused, the loop will wait at the top
+      if (this.streamManager.getCurrentPhase() === "paused") {
+        continue;
+      }
+
+      // Check mode: single game stops after one (unless paused)
       if (this.streamManager.getMode() === "single") {
         this.streamManager.transition("stopped");
         break;
@@ -327,7 +388,10 @@ export class GameOrchestrator {
     }
 
     this.eventHub.off("stream:stopped", onStopped);
+    this.eventHub.off("stream:paused", onPaused);
+    this.eventHub.off("game:skipped", onSkipped);
     this.activeSessionId = null;
+    this.pausedGameId = null;
     logger.info("=== Managed stream ended ===");
   }
 }

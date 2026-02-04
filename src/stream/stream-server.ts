@@ -246,7 +246,10 @@ export class StreamServer {
 
           case "/api/game/skip": {
             this.streamManager.requestSkip();
-            this.sendJson(res, 200, { success: true });
+            this.sendJson(res, 200, {
+              success: true,
+              phase: this.hub.getState().phase,
+            });
             return;
           }
 

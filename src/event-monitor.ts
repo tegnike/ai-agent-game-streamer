@@ -9,6 +9,7 @@ export class EventMonitor {
   private abortController: AbortController | null = null;
   private gameLogger: GameLogger | null = null;
   private eventHub: EventHub | null = null;
+  private onAbortCallback: (() => void) | null = null;
 
   // Delta buffering for text/reasoning
   private textBuffer = "";
@@ -33,8 +34,10 @@ export class EventMonitor {
     sessionId: string,
     onIdle: () => void,
     onError: (error: unknown) => void,
+    onAbort?: () => void,
   ): Promise<void> {
     this.abortController = new AbortController();
+    this.onAbortCallback = onAbort ?? null;
     this.textBuffer = "";
     this.reasoningBuffer = "";
     this.textAccum = "";
@@ -82,7 +85,7 @@ export class EventMonitor {
         }
       }
     } catch (err) {
-      if (!this.abortController.signal.aborted) {
+      if (this.abortController && !this.abortController.signal.aborted) {
         logger.error("Event monitoring error:", err);
         this.gameLogger?.log(`Event monitoring error: ${err}`);
         onError(err);
@@ -221,5 +224,7 @@ export class EventMonitor {
     this.abortController = null;
     this.gameLogger?.close();
     this.gameLogger = null;
+    this.onAbortCallback?.();
+    this.onAbortCallback = null;
   }
 }

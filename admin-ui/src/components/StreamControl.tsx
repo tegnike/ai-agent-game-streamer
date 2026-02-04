@@ -12,6 +12,8 @@ export function StreamControl({ sendCommand }: Props) {
   const mode = useStreamStore((s) => s.state.mode);
   const gamesCompleted = useStreamStore((s) => s.state.gamesCompleted);
   const currentGame = useStreamStore((s) => s.state.currentGameConfig);
+  const configSelectedGames = useStreamStore((s) => s.state.config.selectedGames);
+  const availableGames = useStreamStore((s) => s.availableGames);
   const selectedGames = useStreamStore((s) => s.selectedGames);
   const [selectedMode, setSelectedMode] = useState<StreamMode>("multi");
 
@@ -34,6 +36,10 @@ export function StreamControl({ sendCommand }: Props) {
   const isIdle = phase === "idle" || phase === "stopped";
   const isPaused = phase === "paused";
   const isActive = phase === "playing" || phase === "starting" || phase === "transitioning";
+
+  // Skip Game is disabled when the effective game pool has 1 or fewer entries
+  const effectiveGameCount = configSelectedGames?.length || availableGames.length;
+  const skipDisabled = effectiveGameCount <= 1;
 
   return (
     <CollapsiblePanel title="Stream Control" className="stream-control">
@@ -69,29 +75,54 @@ export function StreamControl({ sendCommand }: Props) {
         </div>
       )}
 
+      {isIdle && (
+        <p className="hint-text">
+          {selectedMode === "single"
+            ? "選択中のゲームから1つをランダムにプレイして終了します"
+            : "選択中のゲームをランダム順でループ再生します"}
+        </p>
+      )}
+
       {isActive && (
-        <div className="control-group">
-          <button className="btn btn-pause" onClick={handlePause}>
-            Pause
-          </button>
-          <button className="btn btn-stop" onClick={handleStop}>
-            Stop
-          </button>
-          <button className="btn btn-skip" onClick={handleSkip}>
-            Skip Game
-          </button>
-        </div>
+        <>
+          <div className="control-group">
+            <button className="btn btn-pause" onClick={handlePause}>
+              Pause
+            </button>
+            <button className="btn btn-stop" onClick={handleStop}>
+              Stop
+            </button>
+            {mode === "multi" && (
+              <button
+                className="btn btn-skip"
+                onClick={handleSkip}
+                disabled={skipDisabled}
+              >
+                Skip Game
+              </button>
+            )}
+          </div>
+          <p className="hint-text">
+            Pause: AIの進行を一時停止 / Stop: ゲームを終了してロビーへ
+            {mode === "multi" && " / Skip: 次のゲームへスキップ"}
+          </p>
+        </>
       )}
 
       {isPaused && (
-        <div className="control-group">
-          <button className="btn btn-start" onClick={handleResume}>
-            Resume
-          </button>
-          <button className="btn btn-stop" onClick={handleStop}>
-            Stop
-          </button>
-        </div>
+        <>
+          <div className="control-group">
+            <button className="btn btn-start" onClick={handleResume}>
+              Restart
+            </button>
+            <button className="btn btn-stop" onClick={handleStop}>
+              Stop
+            </button>
+          </div>
+          <p className="hint-text">
+            Restart: 同じゲームでAIを再開 / Stop: ゲームを終了してロビーへ
+          </p>
+        </>
       )}
     </CollapsiblePanel>
   );

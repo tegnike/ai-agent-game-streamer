@@ -240,6 +240,9 @@ export class WSHandler {
       case "game:completed":
         return { type: "game:event", data: event.data as never };
 
+      case "game:skipped":
+        return { type: "state:update", data: this.hub.getState() };
+
       case "stream:started":
       case "stream:stopped":
       case "stream:paused":

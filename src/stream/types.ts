@@ -87,6 +87,7 @@ export type StreamEventType =
   | "game:starting"
   | "game:started"
   | "game:completed"
+  | "game:skipped"
   | "stream:started"
   | "stream:stopped"
   | "stream:paused"
