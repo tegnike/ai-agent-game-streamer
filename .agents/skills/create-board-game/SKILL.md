@@ -37,7 +37,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python3 -m http.server*), Bas
 すべてのゲームは以下の構成で作成します：
 
 ```
-samples/<game-name>/
+games/<game-name>/
 ├── index.html    # UI構造
 ├── script.js     # ゲームロジック + AI
 └── style.css     # スタイリング
@@ -49,7 +49,7 @@ samples/<game-name>/
 
 ```bash
 # オセロの実装を確認
-cat samples/nike-othello/script.js
+cat games/nike-othello/script.js
 ```
 
 ## 共通アーキテクチャ
@@ -308,7 +308,7 @@ evaluateLine(line, player) {
 
 ```bash
 # ローカルサーバー起動
-cd samples/<game-name>
+cd games/<game-name>
 python3 -m http.server 8080
 
 # ブラウザで開く

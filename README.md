@@ -11,14 +11,14 @@ AIエージェントがブラウザベースのボードゲームをプレイ・
 
 ## 収録ゲーム
 
-ゲーム一覧ページ (`samples/index.html`) からすべてのゲームにアクセスできます。
+ゲーム一覧ページ (`games/index.html`) からすべてのゲームにアクセスできます。
 
 | ゲーム | 説明 | 操作方式 | API |
 |--------|------|----------|-----|
-| [オセロ](samples/othello/) | 8x8ボードで石を挟んで裏返す | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
-| [五目並べ](samples/gomoku/) | 19x19碁盤で先に5つ並べたら勝ち | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
-| [倉庫番](samples/sokoban/) | 箱を押してゴールに運ぶパズル（10ステージ） | 方向キー移動 | `move(direction)`, `undo()`, `loadStage(n)` |
-| [カードバトル](samples/card-battle/) | 属性カードで戦う Element Clash | カード選択 | `playCard()`, `sacrificeCard()`, `getGameState()` |
+| [オセロ](games/othello/) | 8x8ボードで石を挟んで裏返す | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
+| [五目並べ](games/gomoku/) | 19x19碁盤で先に5つ並べたら勝ち | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
+| [倉庫番](games/sokoban/) | 箱を押してゴールに運ぶパズル（10ステージ） | 方向キー移動 | `move(direction)`, `undo()`, `loadStage(n)` |
+| [カードバトル](games/card-battle/) | 属性カードで戦う Element Clash | カード選択 | `playCard()`, `sacrificeCard()`, `getGameState()` |
 
 ## アーキテクチャ
 
@@ -46,7 +46,7 @@ AIエージェントがブラウザベースのボードゲームをプレイ・
 │  └─────────────────────────┘     │ └──────┬───────┘
 └──────────────────────────────────┘        │
                                     ┌───────▼────────┐
-                                    │ samples/<game>  │
+                                    │ games/<game>  │
                                     │ HTML/CSS/JS     │
                                     └────────────────┘
 ```
@@ -174,7 +174,7 @@ ai-agent-game-streamer/
 │   ├── play-game/               #   ゲーム自動プレイ
 │   ├── generate-image/          #   画像生成（Gemini API）
 │   └── generate-transparent-image/  # 透過画像生成（Gemini + PhotoRoom）
-├── samples/                     # ゲーム集
+├── games/                     # ゲーム集
 │   ├── index.html               #   ゲーム一覧ページ
 │   ├── common/                  #   共通スタイル
 │   ├── othello/                 #   オセロ
@@ -336,7 +336,7 @@ cd samples && python3 -m http.server 8080
 open http://localhost:8080
 
 # 個別ゲームを開く
-cd samples/othello && python3 -m http.server 8080
+cd games/othello && python3 -m http.server 8080
 open http://localhost:8080
 ```
 

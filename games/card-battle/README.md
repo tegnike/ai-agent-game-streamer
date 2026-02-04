@@ -126,7 +126,7 @@ CPUの手札カードは**属性（アイコン・属性名・属性カラー）
 ## 起動方法
 
 ```bash
-cd samples/card-battle
+cd games/card-battle
 python3 -m http.server 8080
 open http://localhost:8080
 ```

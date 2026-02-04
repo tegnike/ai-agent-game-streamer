@@ -23,10 +23,10 @@
 
 | ゲーム | ディレクトリ | 操作方法 |
 |--------|-------------|---------|
-| オセロ | samples/othello/ | `game.handleCellClick(row, col)` |
-| 五目並べ | samples/gomoku/ | `game.handleCellClick(row, col)` |
-| 倉庫番 | samples/sokoban/ | `game.move(direction)` |
-| カードバトル | samples/card-battle/ | DOM クリックイベント |
+| オセロ | games/othello/ | `game.handleCellClick(row, col)` |
+| 五目並べ | games/gomoku/ | `game.handleCellClick(row, col)` |
+| 倉庫番 | games/sokoban/ | `game.move(direction)` |
+| カードバトル | games/card-battle/ | DOM クリックイベント |
 
 ## セットアップ（ブラウザ起動前に必ず実行）
 
@@ -55,9 +55,9 @@ agent-browser screenshot logs/20260202-143025_initial.png
 
 1. **セットアップ**: `agent-browser install && agent-browser close`
 2. ポート確認: `lsof -i:8888`
-3. サーバー起動: `cd samples/<game> && python3 -m http.server 8888 &`
+3. サーバー起動: `cd games/<game> && python3 -m http.server 8888 &`
 4. ブラウザ起動: `agent-browser open --headed http://127.0.0.1:8888/index.html`
-5. README確認: `samples/<game>/README.md` を読む
+5. README確認: `games/<game>/README.md` を読む
 6. ゲーム状態取得: `agent-browser eval "JSON.stringify(...)"`
 7. 手を実行（0.5秒間隔）
 8. ゲーム終了後: ブラウザを閉じてサーバーを停止

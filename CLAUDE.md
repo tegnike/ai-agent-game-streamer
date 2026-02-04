@@ -31,7 +31,7 @@ TypeScriptで書かれたオーケストレーション層。OpenCode SDKを通�
 4. **generate-image**: Gemini APIベースの画像生成
 5. **generate-transparent-image**: 背景透過画像生成（Gemini + PhotoRoom API）
 
-### Sample Games (`samples/`)
+### Sample Games (`games/`)
 
 各ゲームは `index.html` + `script.js` + `style.css` + `README.md` 構成（card-battleはモジュール分割あり）：
 
@@ -65,7 +65,7 @@ npm run build              # TypeScriptコンパイル → dist/
 ### ゲームの動作確認
 
 ```bash
-cd samples/<game-name>
+cd games/<game-name>
 python3 -m http.server 8080
 open http://localhost:8080
 ```
@@ -75,7 +75,7 @@ open http://localhost:8080
 ```bash
 npm install -g agent-browser
 agent-browser install
-agent-browser --headed open http://127.0.0.1:8888/samples/othello/
+agent-browser --headed open http://127.0.0.1:8888/games/othello/
 ```
 
 ## ゲームをプレイ
