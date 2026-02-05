@@ -6,6 +6,8 @@ import type {
   ConnectionStatus,
   GameConfig,
   GameId,
+  ProviderInfo,
+  LLMState,
 } from "../types";
 
 interface StreamStore {
@@ -39,6 +41,12 @@ interface StreamStore {
   eventLog: { time: string; type: string; content: string }[];
   addEventLog: (type: string, content: string) => void;
   clearEventLog: () => void;
+
+  // LLM Configuration
+  providers: ProviderInfo[];
+  setProviders: (providers: ProviderInfo[]) => void;
+  llmState: LLMState;
+  setLLMState: (state: LLMState) => void;
 }
 
 const DEFAULT_STATE: StreamState = {
@@ -59,6 +67,12 @@ const DEFAULT_STATE: StreamState = {
 
 const MAX_ACTIVITIES = 200;
 const MAX_EVENT_LOG = 500;
+
+const DEFAULT_LLM_STATE: LLMState = {
+  current: null,
+  pending: null,
+  requiresRestart: false,
+};
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString("ja-JP", { hour12: false });
@@ -122,4 +136,9 @@ export const useStreamStore = create<StreamStore>((set) => ({
       return { eventLog: next };
     }),
   clearEventLog: () => set({ eventLog: [] }),
+
+  providers: [],
+  setProviders: (providers) => set({ providers }),
+  llmState: DEFAULT_LLM_STATE,
+  setLLMState: (llmState) => set({ llmState }),
 }));

@@ -7,7 +7,8 @@ import type { EventHub } from "./event-hub.js";
 import type { StreamManager } from "./stream-manager.js";
 import { WSHandler } from "./ws-handler.js";
 import { GAME_REGISTRY } from "../games/game-registry.js";
-import type { StreamConfig, ViewerComment } from "./types.js";
+import type { StreamConfig, LLMConfig } from "./types.js";
+import { LLMConfigManager } from "./llm-config-manager.js";
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -33,6 +34,7 @@ export class StreamServer {
   private wss: WebSocketServer | null = null;
   private port: number;
   private staticDir: string | null;
+  private llmConfigManager: LLMConfigManager;
   private onAdminMessage?: (text: string) => void;
   private onCommentQueue?: (commentId: string) => void;
   private onCommentDismiss?: (commentId: string) => void;
@@ -44,6 +46,7 @@ export class StreamServer {
   private onBrowserLaunch?: () => Promise<{ success: boolean; error?: string }>;
   private onBrowserLaunchCDP?: (port: number) => Promise<{ success: boolean; error?: string }>;
   private onBrowserClose?: () => Promise<void>;
+  private onLLMRestart?: () => Promise<{ success: boolean; error?: string }>;
 
   constructor(
     hub: EventHub,
@@ -62,12 +65,15 @@ export class StreamServer {
       onBrowserLaunch?: () => Promise<{ success: boolean; error?: string }>;
       onBrowserLaunchCDP?: (port: number) => Promise<{ success: boolean; error?: string }>;
       onBrowserClose?: () => Promise<void>;
+      onLLMRestart?: () => Promise<{ success: boolean; error?: string }>;
+      llmConfigManager?: LLMConfigManager;
     } = {},
   ) {
     this.hub = hub;
     this.streamManager = streamManager;
     this.port = options.port ?? 3000;
     this.staticDir = options.staticDir ?? null;
+    this.llmConfigManager = options.llmConfigManager ?? new LLMConfigManager();
     this.onAdminMessage = options.onAdminMessage;
     this.onCommentQueue = options.onCommentQueue;
     this.onCommentDismiss = options.onCommentDismiss;
@@ -79,11 +85,14 @@ export class StreamServer {
     this.onBrowserLaunch = options.onBrowserLaunch;
     this.onBrowserLaunchCDP = options.onBrowserLaunchCDP;
     this.onBrowserClose = options.onBrowserClose;
+    this.onLLMRestart = options.onLLMRestart;
 
     this.wsHandler = new WSHandler(hub, streamManager, {
       onAdminMessage: this.onAdminMessage,
       onCommentQueue: this.onCommentQueue,
       onCommentDismiss: this.onCommentDismiss,
+      onLLMConfig: (config: LLMConfig) => this.handleLLMConfig(config),
+      onLLMRestart: () => this.handleLLMRestart(),
     });
   }
 
@@ -196,6 +205,14 @@ export class StreamServer {
           });
           return;
         }
+
+        case "/api/llm/providers":
+          this.sendJson(res, 200, this.llmConfigManager.getProviders());
+          return;
+
+        case "/api/llm/config":
+          this.sendJson(res, 200, this.llmConfigManager.getState());
+          return;
       }
     }
 
@@ -369,6 +386,24 @@ export class StreamServer {
             return;
           }
 
+          case "/api/llm/config": {
+            const { provider, model, apiKey } = body as { provider?: string; model?: string; apiKey?: string };
+            if (!provider || !model) {
+              this.sendJson(res, 400, { error: "provider and model are required" });
+              return;
+            }
+            const config: LLMConfig = { provider: provider as LLMConfig["provider"], model, apiKey };
+            this.handleLLMConfig(config);
+            this.sendJson(res, 200, this.llmConfigManager.getState());
+            return;
+          }
+
+          case "/api/llm/restart": {
+            const result = await this.handleLLMRestart();
+            this.sendJson(res, result.success ? 200 : 400, result);
+            return;
+          }
+
           default:
             break;
         }
@@ -482,5 +517,39 @@ export class StreamServer {
 
   getPort(): number {
     return this.port;
+  }
+
+  getLLMConfigManager(): LLMConfigManager {
+    return this.llmConfigManager;
+  }
+
+  private handleLLMConfig(config: LLMConfig): void {
+    this.llmConfigManager.setConfig(config);
+    this.broadcastLLMState();
+  }
+
+  private async handleLLMRestart(): Promise<{ success: boolean; error?: string }> {
+    // Check if stream is running
+    const phase = this.streamManager.getCurrentPhase();
+    if (phase !== "idle" && phase !== "stopped") {
+      return { success: false, error: "Cannot restart while stream is running. Stop the stream first." };
+    }
+
+    if (!this.onLLMRestart) {
+      return { success: false, error: "LLM restart not configured" };
+    }
+
+    const result = await this.onLLMRestart();
+    if (result.success) {
+      this.broadcastLLMState();
+    }
+    return result;
+  }
+
+  broadcastLLMState(): void {
+    this.wsHandler.broadcast({
+      type: "llm:state",
+      data: this.llmConfigManager.getState(),
+    });
   }
 }

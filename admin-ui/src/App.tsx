@@ -9,6 +9,7 @@ import { CommentPanel } from "./components/CommentPanel";
 import { CommentSourcePanel } from "./components/CommentSourcePanel";
 import { VisualBridgePanel } from "./components/VisualBridgePanel";
 import { BrowserPanel } from "./components/BrowserPanel";
+import { LLMConfigPanel } from "./components/LLMConfigPanel";
 import { EventLog } from "./components/EventLog";
 import { ResizeHandle } from "./components/ResizeHandle";
 
@@ -43,6 +44,7 @@ export default function App() {
         <div className="column column-left" style={{ width: leftWidth, minWidth: leftWidth }}>
           <StreamControl sendCommand={sendCommand} />
           <BrowserPanel />
+          <LLMConfigPanel />
           <GameSelector />
           <MessagePanel sendCommand={sendCommand} />
           <CommentPanel sendCommand={sendCommand} />

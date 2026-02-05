@@ -1,5 +1,37 @@
 import type { GameId, GameConfig } from "../types.js";
 
+// --- LLM Configuration ---
+
+export type ProviderId = "openai" | "anthropic" | "google" | "zai";
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface ProviderInfo {
+  id: ProviderId;
+  name: string;
+  models: ModelInfo[];
+  envKey: string;
+  hasApiKey: boolean;
+  npm?: string;
+  baseURL?: string;
+}
+
+export interface LLMConfig {
+  provider: ProviderId;
+  model: string;
+  apiKey?: string; // Optional override (env var used if not provided)
+}
+
+export interface LLMState {
+  current: LLMConfig | null;
+  pending: LLMConfig | null;
+  requiresRestart: boolean;
+}
+
 // --- Stream Lifecycle ---
 
 export type StreamMode = "single" | "multi";
@@ -130,7 +162,9 @@ export type AdminCommand =
   | { type: "comment:dismiss"; commentId: string }
   | { type: "browser:launch" }
   | { type: "browser:launch-cdp"; port: number }
-  | { type: "browser:close" };
+  | { type: "browser:close" }
+  | { type: "llm:config"; config: LLMConfig }
+  | { type: "llm:restart" };
 
 export type ServerEvent =
   | { type: "state:full"; data: StreamState }
@@ -139,6 +173,7 @@ export type ServerEvent =
   | { type: "agent:activity:delta"; id: string; delta: string }
   | { type: "game:event"; data: GameEvent }
   | { type: "comment:updated"; data: ViewerComment }
+  | { type: "llm:state"; data: LLMState }
   | { type: "error"; message: string };
 
 // --- Visual Bridge ---

@@ -4,7 +4,7 @@ import type { Config } from "@opencode-ai/sdk";
 import { OPENCODE_CONFIG } from "./config.js";
 import { logger } from "./utils/logger.js";
 
-async function killPort(port: number): Promise<void> {
+export async function killPort(port: number): Promise<void> {
   try {
     const pid = execSync(`lsof -t -i:${port} 2>/dev/null`).toString().trim();
     if (pid) {

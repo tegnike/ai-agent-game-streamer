@@ -672,3 +672,84 @@ select {
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a5a;
 }
+
+/* LLM Config Panel */
+.llm-config-panel .form-group {
+  margin-bottom: 10px;
+}
+
+.llm-config-panel .form-group label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.llm-config-panel .form-group select,
+.llm-config-panel .form-group input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.llm-config-panel .form-group select:focus,
+.llm-config-panel .form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.llm-config-panel .env-hint {
+  color: var(--green);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.llm-config-panel .current-model {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.llm-config-panel .pending-warning {
+  background: rgba(255, 145, 0, 0.15);
+  border: 1px solid var(--orange);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--orange);
+}
+
+.llm-config-panel .pending-warning small {
+  color: var(--text-muted);
+}
+
+.llm-config-panel .button-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.llm-config-panel .button-row .btn {
+  flex: 1;
+}
+
+.llm-config-panel .btn-restart {
+  background: var(--orange);
+  color: #000;
+}
+
+.llm-config-panel .btn-restart:hover:not(:disabled) {
+  background: #ffab40;
+}
+
+.llm-config-panel .btn-restart:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.log-llm .log-type { color: var(--purple); }

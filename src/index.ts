@@ -1,13 +1,15 @@
-import { startServer, connectToServer } from "./server.js";
+import { startServer, connectToServer, killPort } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
-import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT } from "./config.js";
+import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG } from "./config.js";
 import type { GameId } from "./types.js";
 import { EventHub } from "./stream/event-hub.js";
 import { StreamManager } from "./stream/stream-manager.js";
 import { StreamServer } from "./stream/stream-server.js";
 import { BrowserManager } from "./utils/browser-manager.js";
+import { LLMConfigManager } from "./stream/llm-config-manager.js";
+import type { OpencodeClient } from "@opencode-ai/sdk";
 
 function parseArg(args: string[], prefix: string): string | undefined {
   const arg = args.find((a) => a.startsWith(prefix));
@@ -27,18 +29,25 @@ async function main() {
   const visualEndpoint = parseArg(args, "--visual-endpoint=");
   const visualInterval = parseArg(args, "--visual-interval=");
 
+  // Initialize LLM config manager
+  const llmConfigManager = new LLMConfigManager();
+  llmConfigManager.initialize(providerName, modelName);
+
   const modelConfig = buildModelConfig(providerName, modelName);
   if (modelConfig) {
     logger.info(`Using model: ${modelConfig.model}`);
   }
 
   // Start or connect to OpenCode server
-  const client = connectMode
-    ? connectToServer()
-    : await startServer(modelConfig);
+  // Use ref pattern to allow hot-swapping the client on LLM restart
+  const clientRef: { current: OpencodeClient } = {
+    current: connectMode
+      ? connectToServer()
+      : await startServer(modelConfig),
+  };
 
   // Verify connection
-  const configResult = await client.config.get();
+  const configResult = await clientRef.current.config.get();
   logger.info("Server connected:", configResult.data ? "OK" : "FAILED");
 
   // Initialize EventHub + StreamManager if admin mode
@@ -168,11 +177,40 @@ async function main() {
         eventHub!.setBrowserState(browserManager.getState());
         eventHub!.emit("browser:closed");
       },
+      llmConfigManager,
+      onLLMRestart: async () => {
+        try {
+          logger.info("Restarting OpenCode server with new LLM config...");
+
+          // Apply pending config
+          const newConfig = llmConfigManager.applyPendingConfig();
+          if (!newConfig) {
+            return { success: false, error: "No pending config to apply" };
+          }
+
+          // Kill existing OpenCode server
+          await killPort(OPENCODE_CONFIG.port);
+
+          // Start new server with new config
+          clientRef.current = await startServer(newConfig);
+
+          // Update orchestrator with new client
+          if (orchestratorRef.current) {
+            orchestratorRef.current.updateClient(clientRef.current);
+          }
+
+          logger.info(`LLM restarted with model: ${newConfig.model}`);
+          return { success: true };
+        } catch (err) {
+          logger.error("Failed to restart LLM:", err);
+          return { success: false, error: String(err) };
+        }
+      },
     });
 
     await streamServer.start();
 
-    const orchestrator = new GameOrchestrator(client, eventHub, browserManager);
+    const orchestrator = new GameOrchestrator(clientRef.current, eventHub, browserManager);
     orchestrator.setStreamManager(streamManager);
     orchestratorRef.current = orchestrator;
 
@@ -236,7 +274,7 @@ async function main() {
     }
   } else {
     // Non-admin mode: original behavior
-    const orchestrator = new GameOrchestrator(client);
+    const orchestrator = new GameOrchestrator(clientRef.current);
 
     if (loopMode) {
       await orchestrator.startStreamingLoop();

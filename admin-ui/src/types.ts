@@ -2,6 +2,36 @@
 
 export type GameId = "othello" | "gomoku" | "sokoban" | "card-battle";
 
+// --- LLM Configuration ---
+
+export type ProviderId = "openai" | "anthropic" | "google" | "zai";
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface ProviderInfo {
+  id: ProviderId;
+  name: string;
+  models: ModelInfo[];
+  envKey: string;
+  hasApiKey: boolean;
+}
+
+export interface LLMConfig {
+  provider: ProviderId;
+  model: string;
+  apiKey?: string;
+}
+
+export interface LLMState {
+  current: LLMConfig | null;
+  pending: LLMConfig | null;
+  requiresRestart: boolean;
+}
+
 export interface GameConfig {
   id: GameId;
   name: string;
@@ -85,7 +115,9 @@ export type AdminCommand =
   | { type: "game:skip" }
   | { type: "admin:message"; text: string }
   | { type: "comment:queue"; commentId: string }
-  | { type: "comment:dismiss"; commentId: string };
+  | { type: "comment:dismiss"; commentId: string }
+  | { type: "llm:config"; config: LLMConfig }
+  | { type: "llm:restart" };
 
 export type ServerEvent =
   | { type: "state:full"; data: StreamState }
@@ -94,6 +126,7 @@ export type ServerEvent =
   | { type: "agent:activity:delta"; id: string; delta: string }
   | { type: "game:event"; data: { type: string; gameId: GameId } }
   | { type: "comment:updated"; data: ViewerComment }
+  | { type: "llm:state"; data: LLMState }
   | { type: "error"; message: string };
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";

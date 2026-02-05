@@ -1,6 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config } from "@opencode-ai/sdk";
+import type {
+  ProviderId,
+  ModelInfo,
+  ProviderInfo,
+  LLMConfig,
+} from "./stream/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PROJECT_ROOT = path.resolve(__dirname, "..");
@@ -58,7 +64,119 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
 };
 
-export const DEFAULT_PROVIDER = "zai";
+export const DEFAULT_PROVIDER: ProviderId = "zai";
+
+// --- Extended Provider Configs with Model Lists ---
+
+interface ProviderConfig {
+  name: string;
+  models: ModelInfo[];
+  defaultModel: string;
+  smallModel: string;
+  envKey: string;
+  npm?: string;
+  baseURL?: string;
+}
+
+export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
+  openai: {
+    name: "OpenAI",
+    models: [
+      { id: "gpt-4.1", name: "GPT-4.1", description: "最新フラッグシップ" },
+      { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", description: "効率的なバランスモデル" },
+      { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", description: "軽量・高速" },
+      { id: "o3", name: "o3", description: "高度な推論モデル" },
+      { id: "o4-mini", name: "o4-mini", description: "効率的な推論モデル" },
+    ],
+    defaultModel: "gpt-4.1",
+    smallModel: "gpt-4.1-mini",
+    envKey: "OPENAI_API_KEY",
+  },
+  anthropic: {
+    name: "Anthropic",
+    models: [
+      { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "最高性能" },
+      { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "バランス型" },
+      { id: "claude-haiku-3-5-20241022", name: "Claude Haiku 3.5", description: "高速・効率的" },
+    ],
+    defaultModel: "claude-sonnet-4-20250514",
+    smallModel: "claude-haiku-3-5-20241022",
+    envKey: "ANTHROPIC_API_KEY",
+  },
+  google: {
+    name: "Google",
+    models: [
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "高度な機能" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", description: "高速応答" },
+      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", description: "軽量版" },
+    ],
+    defaultModel: "gemini-2.5-pro",
+    smallModel: "gemini-2.5-flash",
+    envKey: "GOOGLE_API_KEY",
+  },
+  zai: {
+    name: "Zai (智谱AI)",
+    models: [
+      { id: "glm-4.7", name: "GLM-4.7", description: "フラッグシップ" },
+      { id: "glm-4.7-flash", name: "GLM-4.7 Flash", description: "高速版" },
+    ],
+    defaultModel: "glm-4.7",
+    smallModel: "glm-4.7-flash",
+    envKey: "ZAI_API_KEY",
+    npm: "@ai-sdk/openai-compatible",
+    baseURL: "https://api.z.ai/api/coding/paas/v4",
+  },
+};
+
+/**
+ * Get list of all providers with API key availability status
+ */
+export function getProviderInfoList(): ProviderInfo[] {
+  return (Object.keys(PROVIDER_CONFIGS) as ProviderId[]).map((id) => {
+    const config = PROVIDER_CONFIGS[id];
+    return {
+      id,
+      name: config.name,
+      models: config.models,
+      envKey: config.envKey,
+      hasApiKey: !!process.env[config.envKey],
+      npm: config.npm,
+      baseURL: config.baseURL,
+    };
+  });
+}
+
+/**
+ * Build OpenCode SDK Config from LLMConfig
+ */
+export function buildModelConfigFromLLM(llmConfig: LLMConfig): Config {
+  const providerConfig = PROVIDER_CONFIGS[llmConfig.provider];
+  if (!providerConfig) {
+    throw new Error(`Unknown provider: ${llmConfig.provider}`);
+  }
+
+  const config: Record<string, unknown> = {
+    env: [providerConfig.envKey],
+  };
+  if (providerConfig.npm) {
+    config.npm = providerConfig.npm;
+  }
+  if (providerConfig.baseURL) {
+    config.options = { baseURL: providerConfig.baseURL };
+  }
+  // If API key is provided via UI, set it in environment
+  if (llmConfig.apiKey) {
+    process.env[providerConfig.envKey] = llmConfig.apiKey;
+  }
+
+  return {
+    model: `${llmConfig.provider}/${llmConfig.model}`,
+    small_model: `${llmConfig.provider}/${providerConfig.smallModel}`,
+    provider: {
+      [llmConfig.provider]: config,
+    },
+  } as Config;
+}
 
 export function buildModelConfig(
   providerName?: string,

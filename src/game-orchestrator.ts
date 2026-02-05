@@ -56,6 +56,18 @@ export class GameOrchestrator {
   }
 
   /**
+   * Update the OpenCode client (used when LLM is restarted)
+   */
+  updateClient(client: OpencodeClient): void {
+    this.sessionManager = new SessionManager(client);
+    this.eventMonitor = new EventMonitor(client);
+    if (this.eventHub) {
+      this.eventMonitor.setEventHub(this.eventHub);
+    }
+    logger.info("GameOrchestrator client updated");
+  }
+
+  /**
    * Ensure persistent infrastructure is running (HTTP server + browser).
    * This method is idempotent and safe to call multiple times.
    */

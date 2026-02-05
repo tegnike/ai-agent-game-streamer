@@ -28,6 +28,7 @@ export function useWebSocket() {
     addActivity,
     updateComment,
     addEventLog,
+    setLLMState,
   } = useStreamStore();
 
   const handleMessage = useCallback(
@@ -60,6 +61,10 @@ export function useWebSocket() {
           case "comment:updated":
             updateComment(msg.data);
             break;
+          case "llm:state":
+            setLLMState(msg.data);
+            addEventLog("llm", `LLM state updated (pending: ${msg.data.requiresRestart})`);
+            break;
           case "error":
             addEventLog("error", msg.message);
             break;
@@ -68,7 +73,7 @@ export function useWebSocket() {
         // Invalid message
       }
     },
-    [setState, updateState, addActivity, updateComment, addEventLog],
+    [setState, updateState, addActivity, updateComment, addEventLog, setLLMState],
   );
 
   const connect = useCallback(() => {

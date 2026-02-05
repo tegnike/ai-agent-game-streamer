@@ -2,7 +2,7 @@ import type { WebSocket } from "ws";
 import { logger } from "../utils/logger.js";
 import type { EventHub } from "./event-hub.js";
 import type { StreamManager } from "./stream-manager.js";
-import type { AdminCommand, ServerEvent, StreamEvent } from "./types.js";
+import type { AdminCommand, ServerEvent, StreamEvent, LLMConfig } from "./types.js";
 
 const PING_INTERVAL = 30_000;
 
@@ -23,6 +23,8 @@ export class WSHandler {
   private onBrowserLaunch?: () => void;
   private onBrowserLaunchCDP?: (port: number) => void;
   private onBrowserClose?: () => void;
+  private onLLMConfig?: (config: LLMConfig) => void;
+  private onLLMRestart?: () => Promise<{ success: boolean; error?: string }>;
 
   constructor(
     hub: EventHub,
@@ -34,6 +36,8 @@ export class WSHandler {
       onBrowserLaunch?: () => void;
       onBrowserLaunchCDP?: (port: number) => void;
       onBrowserClose?: () => void;
+      onLLMConfig?: (config: LLMConfig) => void;
+      onLLMRestart?: () => Promise<{ success: boolean; error?: string }>;
     },
   ) {
     this.hub = hub;
@@ -44,6 +48,8 @@ export class WSHandler {
     this.onBrowserLaunch = callbacks?.onBrowserLaunch;
     this.onBrowserLaunchCDP = callbacks?.onBrowserLaunchCDP;
     this.onBrowserClose = callbacks?.onBrowserClose;
+    this.onLLMConfig = callbacks?.onLLMConfig;
+    this.onLLMRestart = callbacks?.onLLMRestart;
   }
 
   start(): void {
@@ -189,6 +195,14 @@ export class WSHandler {
         this.onBrowserClose?.();
         break;
 
+      case "llm:config":
+        this.onLLMConfig?.(command.config);
+        break;
+
+      case "llm:restart":
+        this.onLLMRestart?.();
+        break;
+
       default:
         logger.error("Unknown command type:", (command as { type: string }).type);
     }
@@ -271,5 +285,11 @@ export class WSHandler {
 
   getClientCount(): number {
     return this.clients.size;
+  }
+
+  broadcast(event: ServerEvent): void {
+    for (const client of this.clients) {
+      this.send(client.ws, event);
+    }
   }
 }
