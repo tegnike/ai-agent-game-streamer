@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ゲーム一覧</title>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,109 +14,289 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            background: #0a0a0a;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'DotGothic16', sans-serif;
             padding: 40px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* CRTスキャンライン効果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* CRTビネット効果 */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 0%,
+                transparent 60%,
+                rgba(0, 0, 0, 0.4) 100%
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
         }
 
         h1 {
-            color: #e0e0e0;
-            font-size: 28px;
-            font-weight: 600;
+            color: #33ff33;
+            font-size: 32px;
+            font-weight: 400;
             margin-bottom: 8px;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.1em;
+            text-shadow:
+                0 0 10px #33ff33,
+                0 0 20px #33ff33,
+                0 0 40px #00aa00;
+            animation: flicker 3s infinite;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            93% { opacity: 0.8; }
+            94% { opacity: 1; }
+            96% { opacity: 0.9; }
+            97% { opacity: 1; }
         }
 
         .subtitle {
-            color: rgba(255, 255, 255, 0.4);
+            color: #00ffff;
             font-size: 14px;
             margin-bottom: 40px;
+            text-shadow: 0 0 8px #00ffff;
+            animation: blink-cursor 1s step-end infinite;
+        }
+
+        .subtitle::after {
+            content: '_';
+            animation: blink-cursor 0.8s step-end infinite;
+        }
+
+        @keyframes blink-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            max-width: 560px;
+            gap: 24px;
+            max-width: 600px;
             width: 100%;
         }
 
         .card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 32px 24px;
+            background: #111;
+            border: 3px solid #333;
+            border-radius: 0;
+            padding: 28px 20px;
             text-decoration: none;
             text-align: center;
-            transition: transform 0.2s, background 0.2s, border-color 0.2s;
+            transition: all 0.1s step-end;
             cursor: pointer;
+            position: relative;
+            /* ピクセル風シャドウ */
+            box-shadow:
+                4px 4px 0 #222,
+                8px 8px 0 #111;
         }
 
         .card:hover {
-            transform: translateY(-4px);
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: #1a1a2e;
+            border-color: #33ff33;
+            transform: translate(-4px, -4px);
+            box-shadow:
+                8px 8px 0 #222,
+                12px 12px 0 #111;
+        }
+
+        .card:hover .card-icon {
+            animation: bounce 0.3s ease-in-out;
+        }
+
+        .card:hover .card-name {
+            color: #33ff33;
+            text-shadow: 0 0 10px #33ff33;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
         }
 
         .card-icon {
             font-size: 48px;
             margin-bottom: 16px;
             display: block;
+            filter: drop-shadow(0 0 8px currentColor);
         }
 
         .card-name {
-            color: #e0e0e0;
+            color: #fff;
             font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
+            font-weight: 400;
+            margin-bottom: 10px;
+            transition: all 0.1s;
         }
 
         .card-desc {
-            color: rgba(255, 255, 255, 0.45);
-            font-size: 13px;
-            line-height: 1.5;
+            color: #888;
+            font-size: 12px;
+            line-height: 1.6;
         }
 
-        @media (max-width: 480px) {
+        /* 各カードにユニークなアクセントカラー */
+        .card-othello:hover {
+            border-color: #33ff33;
+        }
+        .card-othello:hover .card-name {
+            color: #33ff33;
+            text-shadow: 0 0 10px #33ff33;
+        }
+
+        .card-gomoku:hover {
+            border-color: #ff6633;
+        }
+        .card-gomoku:hover .card-name {
+            color: #ff6633;
+            text-shadow: 0 0 10px #ff6633;
+        }
+
+        .card-sokoban:hover {
+            border-color: #ffff33;
+        }
+        .card-sokoban:hover .card-name {
+            color: #ffff33;
+            text-shadow: 0 0 10px #ffff33;
+        }
+
+        .card-battle:hover {
+            border-color: #ff33ff;
+        }
+        .card-battle:hover .card-name {
+            color: #ff33ff;
+            text-shadow: 0 0 10px #ff33ff;
+        }
+
+        /* フッター */
+        .footer {
+            margin-top: 48px;
+            color: #444;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .footer span {
+            animation: color-cycle 4s linear infinite;
+        }
+
+        @keyframes color-cycle {
+            0% { color: #ff3333; }
+            25% { color: #33ff33; }
+            50% { color: #3333ff; }
+            75% { color: #ffff33; }
+            100% { color: #ff3333; }
+        }
+
+        /* セレクトインジケーター */
+        .select-indicator {
+            color: #33ff33;
+            font-size: 14px;
+            margin-bottom: 20px;
+            animation: blink-cursor 1s step-end infinite;
+        }
+
+        @media (max-width: 520px) {
             .grid {
                 grid-template-columns: 1fr;
                 max-width: 280px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .card {
+                box-shadow:
+                    3px 3px 0 #222,
+                    6px 6px 0 #111;
+            }
+
+            .card:hover {
+                transform: translate(-2px, -2px);
+                box-shadow:
+                    5px 5px 0 #222,
+                    8px 8px 0 #111;
             }
         }
     </style>
 </head>
 <body>
-    <h1>Game Collection</h1>
-    <p class="subtitle">AI Agent Game Streamer</p>
+    <div class="container">
+        <h1>GAME SELECT</h1>
+        <p class="subtitle">AI Agent Game Streamer</p>
 
-    <div class="grid">
-        <a href="othello/" class="card">
-            <span class="card-icon">🟢</span>
-            <div class="card-name">オセロ</div>
-            <div class="card-desc">8x8ボードで石を挟んで裏返す定番ゲーム</div>
-        </a>
+        <p class="select-indicator">&gt; SELECT YOUR GAME</p>
 
-        <a href="gomoku/" class="card">
-            <span class="card-icon">⭕</span>
-            <div class="card-name">五目並べ</div>
-            <div class="card-desc">先に5つ並べた方が勝ちの対戦ゲーム</div>
-        </a>
+        <div class="grid">
+            <a href="othello/" class="card card-othello">
+                <span class="card-icon">🟢</span>
+                <div class="card-name">オセロ</div>
+                <div class="card-desc">8x8ボードで石を挟んで裏返す定番ゲーム</div>
+            </a>
 
-        <a href="sokoban/" class="card">
-            <span class="card-icon">📦</span>
-            <div class="card-name">倉庫番</div>
-            <div class="card-desc">箱を押してゴールに運ぶパズルゲーム</div>
-        </a>
+            <a href="gomoku/" class="card card-gomoku">
+                <span class="card-icon">⭕</span>
+                <div class="card-name">五目並べ</div>
+                <div class="card-desc">先に5つ並べた方が勝ちの対戦ゲーム</div>
+            </a>
 
-        <a href="card-battle/" class="card">
-            <span class="card-icon">🃏</span>
-            <div class="card-name">カードバトル</div>
-            <div class="card-desc">属性カードで戦うElement Clash</div>
-        </a>
+            <a href="sokoban/" class="card card-sokoban">
+                <span class="card-icon">📦</span>
+                <div class="card-name">倉庫番</div>
+                <div class="card-desc">箱を押してゴールに運ぶパズルゲーム</div>
+            </a>
+
+            <a href="card-battle/" class="card card-battle">
+                <span class="card-icon">🃏</span>
+                <div class="card-name">カードバトル</div>
+                <div class="card-desc">属性カードで戦うElement Clash</div>
+            </a>
+        </div>
+
+        <div class="footer">
+            <span>PRESS START</span>
+        </div>
     </div>
 </body>
 </html>
