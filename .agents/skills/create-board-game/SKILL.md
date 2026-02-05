@@ -329,3 +329,65 @@ open http://localhost:8080
 - [ ] リセットボタンが機能する
 - [ ] **16:9（1280x720）の画面に収まる**
 - [ ] アニメーションが滑らか
+- [ ] ゲーム一覧用のアイコンが作成されている
+- [ ] `src/types.ts` の `GameId` 型に追加
+- [ ] `src/games/game-registry.ts` にゲーム設定を追加
+- [ ] `games/index.html` の一覧ページにカードを追加
+- [ ] `npm run build` でビルドが通る
+
+## ゲーム一覧・レジストリへの登録
+
+ゲーム作成後、以下の3箇所に新しいゲームを登録してください：
+
+### 1. GameId 型の追加（`src/types.ts`）
+
+```typescript
+export type GameId = "othello" | "gomoku" | ... | "<new-game>";
+```
+
+### 2. ゲームレジストリへの追加（`src/games/game-registry.ts`）
+
+```typescript
+"<new-game>": {
+    id: "<new-game>",
+    name: "Game Name",
+    nameJa: "ゲーム名",
+    directory: "<new-game>",
+    controlMethod: "cell-click",  // "cell-click" | "move" | "dom-click"
+    apiMethods: ["handleCellClick", "getGameState", "init"],
+    port: 8888,
+},
+```
+
+### 3. ゲーム一覧ページへの追加（`games/index.html`）
+
+`.grid` 内にカードを追加し、ホバーカラー用のCSSも追加する：
+
+```html
+<a href="<new-game>/" class="card card-<new-game>">
+    <img src="icons/<icon>.png" alt="ゲーム名" class="card-icon">
+    <div class="card-name">ゲーム名</div>
+    <div class="card-desc">ゲームの簡単な説明</div>
+</a>
+```
+
+### 4. ビルド確認
+
+登録後に `npm run build` を実行して型エラーがないことを確認する。
+
+## アイコン作成
+
+ゲーム一覧に表示するためのアイコンを作成します。`generate-transparent-image` スキルを使用してください。
+
+### 要件
+
+- **画風**: ドットアート（ピクセルアート）スタイルで作成する
+- **内容**: そのゲームが何であるか一目でわかるデザインにする（例: オセロなら白黒の石、五目並べなら碁盤と石、倉庫番なら箱とキャラクター）
+- **背景**: 透過PNG として出力する
+- **保存先**: `games/<game-name>/icon.png`
+
+### 手順
+
+1. `generate-transparent-image` スキルを呼び出す
+2. プロンプトにはゲームの特徴を示すモチーフと「pixel art style」を含める
+3. 生成された透過PNGを `games/<game-name>/icon.png` として保存する

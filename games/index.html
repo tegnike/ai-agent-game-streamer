@@ -211,6 +211,14 @@
             text-shadow: 0 0 10px #ff33ff;
         }
 
+        .card-minesweeper:hover {
+            border-color: #ff3333;
+        }
+        .card-minesweeper:hover .card-name {
+            color: #ff3333;
+            text-shadow: 0 0 10px #ff3333;
+        }
+
         /* フッター */
         .footer {
             margin-top: 48px;
@@ -294,6 +302,12 @@
                 <img src="icons/card-battle.png" alt="カードバトル" class="card-icon">
                 <div class="card-name">カードバトル</div>
                 <div class="card-desc">属性カードで戦うElement Clash</div>
+            </a>
+
+            <a href="minesweeper/" class="card card-minesweeper">
+                <img src="icons/minesweeper_bomb.png" alt="マインスイーパー" class="card-icon">
+                <div class="card-name">マインスイーパー</div>
+                <div class="card-desc">地雷を避けて全セルを開くパズル</div>
             </a>
         </div>
 

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マインスイーパー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="board-area">
+            <div id="board" class="board"></div>
+        </div>
+
+        <div class="game-panel">
+            <h1>💣 マインスイーパー</h1>
+
+            <div class="game-info">
+                <div class="info-item">
+                    <img src="../icons/minesweeper_bomb.png" alt="bomb" class="bomb-icon">
+                    <span id="mine-count">10</span>
+                </div>
+                <div class="info-item">
+                    <span class="timer-icon">⏱</span>
+                    <span id="timer">000</span>
+                </div>
+            </div>
+
+            <div class="difficulty-select">
+                <button class="diff-btn active" data-difficulty="easy">初級<br><small>9×9 / 10個</small></button>
+                <button class="diff-btn" data-difficulty="medium">中級<br><small>16×16 / 40個</small></button>
+                <button class="diff-btn" data-difficulty="hard">上級<br><small>16×30 / 99個</small></button>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <button id="reset-btn" class="reset-btn">🔄 リセット</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

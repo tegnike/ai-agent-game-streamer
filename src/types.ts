@@ -1,4 +1,4 @@
-export type GameId = "othello" | "gomoku" | "sokoban" | "card-battle";
+export type GameId = "othello" | "gomoku" | "sokoban" | "card-battle" | "minesweeper";
 
 export interface GameConfig {
   id: GameId;

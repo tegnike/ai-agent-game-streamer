@@ -37,6 +37,15 @@ export const GAME_REGISTRY: Record<GameId, GameConfig> = {
     apiMethods: ["playCard", "sacrificeCard", "getGameState", "getValidMoves"],
     port: 8888,
   },
+  minesweeper: {
+    id: "minesweeper",
+    name: "Minesweeper",
+    nameJa: "マインスイーパー",
+    directory: "minesweeper",
+    controlMethod: "cell-click",
+    apiMethods: ["handleCellClick", "toggleFlag", "getGameState", "init"],
+    port: 8888,
+  },
 };
 
 export function getRandomGame(exclude: GameId[] = []): GameConfig {
