@@ -26,9 +26,9 @@ const STAGES = [
     // ステージ 1 - チュートリアル
     [
         "  #####",
-        "###   #",
+        "##    #",
         "# $ # ##",
-        "# #  . #",
+        "#    . #",
         "# @ $. #",
         "#      #",
         "########"
@@ -149,6 +149,7 @@ class Sokoban {
         this.currentStage = 0;
         this.board = [];
         this.playerPos = { row: 0, col: 0 };
+        this.playerDirection = 'down'; // プレイヤーの向き（up, down, left, right）
         this.moveCount = 0;
         this.history = [];
         this.goals = [];
@@ -228,8 +229,8 @@ class Sokoban {
 
         const rows = this.board.length;
         const cols = this.board[0].length;
-        boardElement.style.gridTemplateColumns = `repeat(${cols}, 40px)`;
-        boardElement.style.gridTemplateRows = `repeat(${rows}, 40px)`;
+        boardElement.style.gridTemplateColumns = `repeat(${cols}, 60px)`;
+        boardElement.style.gridTemplateRows = `repeat(${rows}, 60px)`;
 
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
@@ -268,12 +269,14 @@ class Sokoban {
                         if (isGoal) cell.classList.add('goal');
                         const player = document.createElement('div');
                         player.className = 'player';
+                        player.dataset.direction = this.playerDirection;
                         cell.appendChild(player);
                         break;
                     case PLAYER_ON_GOAL:
                         cell.classList.add('floor', 'goal');
                         const playerOnGoal = document.createElement('div');
                         playerOnGoal.className = 'player';
+                        playerOnGoal.dataset.direction = this.playerDirection;
                         cell.appendChild(playerOnGoal);
                         break;
                 }
@@ -289,6 +292,9 @@ class Sokoban {
     move(direction) {
         const dir = DIRECTIONS[direction];
         if (!dir) return false;
+
+        // プレイヤーの向きを更新
+        this.playerDirection = direction;
 
         const newRow = this.playerPos.row + dir.row;
         const newCol = this.playerPos.col + dir.col;
@@ -367,6 +373,7 @@ class Sokoban {
         this.history.push({
             board: this.board.map(row => [...row]),
             playerPos: { ...this.playerPos },
+            playerDirection: this.playerDirection,
             moveCount: this.moveCount
         });
 
@@ -385,6 +392,7 @@ class Sokoban {
         const state = this.history.pop();
         this.board = state.board;
         this.playerPos = state.playerPos;
+        this.playerDirection = state.playerDirection;
         this.moveCount = state.moveCount;
 
         this.renderBoard();
