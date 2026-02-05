@@ -31,7 +31,7 @@ export function VisualBridgePanel() {
   };
 
   return (
-    <CollapsiblePanel title="Visual Bridge" className="visual-panel" defaultOpen={false}>
+    <CollapsiblePanel title="Visual Bridge" className="visual-panel">
       {configured ? (
         <div>
           <div className="status-row">

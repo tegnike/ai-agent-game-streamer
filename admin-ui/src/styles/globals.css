@@ -207,6 +207,10 @@ body {
   grid-column: 1 / -1;
 }
 
+.column-left > .game-selector {
+  grid-column: 1 / -1;
+}
+
 /* Connection Status */
 .connection-status {
   font-size: 12px;
@@ -418,7 +422,7 @@ select {
 
 /* Comment Panel */
 .comment-panel {
-  flex: 1;
+  /* flex: 1 removed - uses collapsible panel now */
 }
 
 .comment-list {

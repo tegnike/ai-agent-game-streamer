@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStreamStore } from "../store/stream-store";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 import type { AdminCommand } from "../types";
 
 interface Props {
@@ -41,9 +42,7 @@ export function CommentPanel({ sendCommand }: Props) {
   };
 
   return (
-    <div className="panel comment-panel">
-      <h2>Viewer Comments</h2>
-
+    <CollapsiblePanel title="Viewer Comments" className="comment-panel">
       <div className="comment-list">
         {comments.length === 0 && (
           <div className="comment-empty">No comments yet</div>
@@ -109,6 +108,6 @@ export function CommentPanel({ sendCommand }: Props) {
           + Add Comment
         </button>
       )}
-    </div>
+    </CollapsiblePanel>
   );
 }

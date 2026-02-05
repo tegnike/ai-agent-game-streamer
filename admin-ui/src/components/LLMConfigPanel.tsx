@@ -116,7 +116,7 @@ export function LLMConfigPanel() {
       apiKey.trim() !== "");
 
   return (
-    <CollapsiblePanel title="LLM Settings" className="llm-config-panel" defaultOpen={false}>
+    <CollapsiblePanel title="LLM Settings" className="llm-config-panel">
       {/* Current Config Display */}
       {llmState.current && (
         <div className="status-row">

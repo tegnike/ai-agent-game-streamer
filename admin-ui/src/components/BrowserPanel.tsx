@@ -55,7 +55,7 @@ export function BrowserPanel() {
   const isRunning = browser?.running ?? false;
 
   return (
-    <CollapsiblePanel title="Browser" className="browser-panel" defaultOpen={false}>
+    <CollapsiblePanel title="Browser" className="browser-panel">
       <div className="status-row">
         <span className="label">Status:</span>
         <span className={isRunning ? "status-connected" : ""}>

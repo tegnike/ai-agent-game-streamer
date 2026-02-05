@@ -89,7 +89,7 @@ export function CommentSourcePanel() {
   };
 
   return (
-    <CollapsiblePanel title="Comment Source" className="comment-source-panel" defaultOpen={false}>
+    <CollapsiblePanel title="Comment Source" className="comment-source-panel">
       <div className="source-tabs">
         <button
           className={`source-tab ${activeTab === "youtube" ? "active" : ""}`}
