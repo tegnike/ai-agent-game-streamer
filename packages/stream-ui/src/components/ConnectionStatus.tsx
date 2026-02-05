@@ -2,17 +2,17 @@ import { useEffect, useRef } from 'react'
 import { useStreamStore } from '../store/stream-store'
 import { checkVoicevoxHealth } from '../services/voicevox-client'
 
-const STATUS_COLORS: Record<string, string> = {
-  connected: 'bg-green-500',
-  connecting: 'bg-yellow-500',
-  reconnecting: 'bg-yellow-500',
-  disconnected: 'bg-red-500',
+const STATUS_CLASS: Record<string, string> = {
+  connected: 'biim-status-ok',
+  connecting: 'biim-status-warn',
+  reconnecting: 'biim-status-warn',
+  disconnected: 'biim-status-error',
 }
 
-const VOICEVOX_COLORS: Record<string, string> = {
-  connected: 'bg-green-500',
-  unavailable: 'bg-red-500',
-  checking: 'bg-yellow-500',
+const VOICEVOX_CLASS: Record<string, string> = {
+  connected: 'biim-status-ok',
+  unavailable: 'biim-status-error',
+  checking: 'biim-status-warn',
 }
 
 export function ConnectionStatus() {
@@ -38,21 +38,27 @@ export function ConnectionStatus() {
   }, [setVoicevoxStatus])
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 flex items-center gap-4 px-4 py-2 text-sm bg-black/50">
-      <div className="flex items-center gap-1.5">
-        <div className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[connectionStatus]}`} />
-        <span className="text-gray-300">WS: {connectionStatus}</span>
+    <div
+      className="absolute bottom-0 left-0 right-0 flex items-center gap-4 px-3 py-1 text-xs"
+      style={{
+        background: 'rgba(0, 0, 0, 0.8)',
+        fontFamily: "'DotGothic16', 'MS Gothic', monospace",
+        color: '#00ff00',
+      }}
+    >
+      <div className="flex items-center gap-1">
+        <span className={`biim-status-dot ${STATUS_CLASS[connectionStatus]}`} />
+        <span>WS:{connectionStatus}</span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className={`w-2.5 h-2.5 rounded-full ${VOICEVOX_COLORS[voicevoxStatus]}`} />
-        <span className="text-gray-300">
-          VOICEVOX: {voicevoxStatus === 'unavailable' ? 'VOICEVOX未検出' : voicevoxStatus}
+      <div className="flex items-center gap-1">
+        <span className={`biim-status-dot ${VOICEVOX_CLASS[voicevoxStatus]}`} />
+        <span>
+          TTS:{voicevoxStatus === 'unavailable' ? 'OFF' : voicevoxStatus === 'connected' ? 'OK' : '...'}
         </span>
       </div>
       {currentGame && (
-        <div className="flex items-center gap-1.5 ml-auto">
-          <span className="text-gray-400">🎮</span>
-          <span className="text-gray-300">{currentGame.nameJa || currentGame.name}</span>
+        <div className="flex items-center gap-1 ml-auto" style={{ color: '#ffff00' }}>
+          <span>GAME:{currentGame.nameJa || currentGame.name}</span>
         </div>
       )}
     </div>

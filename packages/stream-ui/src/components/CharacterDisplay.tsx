@@ -22,13 +22,13 @@ export function CharacterDisplay() {
 
   return (
     <div
-      className="shrink-0 flex items-end justify-center"
+      className="biim-character flex items-end justify-center"
       style={{ transform: `translateY(${bounceY}px)` }}
     >
       <img
         src={`/images/nikechan/${imageName}`}
         alt="nikechan"
-        className="h-[500px] object-contain"
+        className="h-[200px] object-contain"
       />
     </div>
   )

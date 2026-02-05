@@ -38,7 +38,7 @@ export function Subtitle() {
     <div
       className={`transition-opacity duration-500 ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
-      <div className="bg-black/70 rounded-lg px-6 py-3 text-white text-xl text-center max-w-2xl mx-auto">
+      <div className="biim-subtitle max-w-2xl mx-auto">
         {displayText}
       </div>
     </div>
