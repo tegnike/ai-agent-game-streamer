@@ -288,7 +288,8 @@ class Gomoku {
         const moves = this.getValidMoves();
         for (const move of moves) {
             this.board[move.row][move.col] = player;
-            if (this.checkWinnerAt(move.row, move.col, player)) {
+            // 探索用なのでwinningCellsは記録しない
+            if (this.checkWinnerAt(move.row, move.col, player, false)) {
                 this.board[move.row][move.col] = EMPTY;
                 return move;
             }
@@ -473,8 +474,9 @@ class Gomoku {
 
     /**
      * 特定の位置で勝利判定
+     * @param {boolean} recordWin - trueなら勝利セルを記録（デフォルトtrue）
      */
-    checkWinnerAt(row, col, player) {
+    checkWinnerAt(row, col, player, recordWin = true) {
         const directions = [
             [[0, -1], [0, 1]],   // 横
             [[-1, 0], [1, 0]],   // 縦
@@ -504,7 +506,9 @@ class Gomoku {
             }
 
             if (count >= WIN_COUNT) {
-                this.winningCells = cells;
+                if (recordWin) {
+                    this.winningCells = cells;
+                }
                 return true;
             }
         }

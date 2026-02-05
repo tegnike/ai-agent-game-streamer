@@ -72,12 +72,69 @@ agent-browser eval "game.loadStage(9)"  # ステージ10
 
 ## API
 
-| メソッド | 説明 |
-|---------|------|
-| `game.move(direction)` | 移動（'up', 'down', 'left', 'right'） |
-| `game.undo()` | 1手戻す |
-| `game.loadStage(index)` | ステージを読み込む（0-9） |
-| `game.checkClear()` | クリア判定 |
+### メソッド
+
+| メソッド | 説明 | 戻り値 |
+|---------|------|--------|
+| `game.move(direction)` | 移動（'up', 'down', 'left', 'right'） | `true`=成功, `false`=移動不可 |
+| `game.undo()` | 1手戻す | - |
+| `game.loadStage(index)` | ステージを読み込む（0-9） | - |
+| `game.checkClear()` | クリア判定 | `true`=クリア, `false`=未クリア |
+| `game.getBoxPositions()` | 箱の位置を取得 | `[{row, col, onGoal}, ...]` |
+
+### プロパティ（状態取得）
+
+| プロパティ | 説明 | 型 |
+|-----------|------|-----|
+| `game.playerPos` | プレイヤー位置 | `{row: number, col: number}` |
+| `game.goals` | ゴール位置の配列 | `[{row, col}, ...]` |
+| `game.board` | 盤面データ（セルタイプの2次元配列） | `number[][]` |
+| `game.currentStage` | 現在のステージ番号 | `0-9` |
+| `game.moveCount` | 移動回数 | `number` |
+
+### セルタイプ（board配列の値）
+
+| 値 | 定数名 | 意味 |
+|----|--------|------|
+| 0 | FLOOR | 床 |
+| 1 | WALL | 壁 |
+| 2 | GOAL | ゴール |
+| 3 | BOX | 箱 |
+| 4 | BOX_ON_GOAL | ゴール上の箱 |
+| 5 | PLAYER | プレイヤー |
+| 6 | PLAYER_ON_GOAL | ゴール上のプレイヤー |
+
+## 攻略のヒント
+
+### 箱とゴールの位置を確認する
+
+```bash
+# 箱の位置を取得
+agent-browser eval "JSON.stringify(game.getBoxPositions())"
+# 例: [{"row":2,"col":2,"onGoal":false},{"row":4,"col":4,"onGoal":false}]
+
+# ゴールの位置を取得
+agent-browser eval "JSON.stringify(game.goals)"
+# 例: [{"row":3,"col":5},{"row":4,"col":5}]
+
+# プレイヤーの位置を取得
+agent-browser eval "JSON.stringify(game.playerPos)"
+# 例: {"row":4,"col":2}
+```
+
+### 重要なルール
+
+- **箱は押すことしかできない**（引くことはできない）
+- **箱を壁や角に押し込むと詰む可能性がある**
+- 詰んだ場合は `game.undo()` で戻るか `game.loadStage(n)` でリセット
+- 移動が失敗（`false`）した場合、位置は変わらない
+
+### 攻略の基本戦略
+
+1. まずゴールと箱の位置を確認する
+2. 箱をゴールに運ぶルートを逆算する（ゴールから箱を押す方向を考える）
+3. 箱を押す方向の反対側に回り込む必要がある
+4. 1手ずつ確実に、移動後の位置を確認しながら進める
 
 ## ファイル構成
 

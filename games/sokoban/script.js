@@ -39,7 +39,7 @@ const STAGES = [
         "#      #",
         "# .**$ #",
         "# .  $ #",
-        "# . $$ #",
+        "# . $  #",
         "#   @  #",
         "########"
     ],
@@ -50,7 +50,7 @@ const STAGES = [
         "#     $ #",
         "# #  #$ #",
         "# . .#@ #",
-        "##$  ####",
+        "##$$ ####",
         " # ..#",
         " #   #",
         " #####"
@@ -84,10 +84,10 @@ const STAGES = [
         "    #$  #",
         "  ###  $##",
         "  #  $ $ #",
-        "### # ## #",
-        "#   # ## ##",
+        "### #    #",
+        "#   # ##  #",
         "# $  $      #",
-        "##### ### #@#",
+        "##### #   #@#",
         "    #  ...  #",
         "    #########"
     ],
@@ -99,7 +99,7 @@ const STAGES = [
         " # $  $  #",
         "## $  $  #",
         "#  ## #####",
-        "#   . .   #",
+        "#   .     #",
         "###. . .###",
         "  # @ #",
         "  #####"
@@ -120,8 +120,8 @@ const STAGES = [
     [
         "   #####",
         "   #   ##",
-        "   # #  #",
-        "   #    #",
+        "   # #$ #",
+        "   # $  #",
         "####$## #",
         "#   $   #",
         "# #$ #$##",
@@ -134,9 +134,9 @@ const STAGES = [
         "##########",
         "# @      #",
         "# ##### ##",
-        "# #   #  #",
+        "# #    $ #",
         "# # $ #  #",
-        "# #$$$#$ #",
+        "# #$$$#  #",
         "# #     .#",
         "#   ###..#",
         "#####  ..#",
@@ -153,6 +153,7 @@ class Sokoban {
         this.moveCount = 0;
         this.history = [];
         this.goals = [];
+        this.isCleared = false; // クリア状態フラグ
         this.init();
     }
 
@@ -174,6 +175,8 @@ class Sokoban {
         this.history = [];
         this.goals = [];
         this.board = [];
+        this.isCleared = false;
+        this.hideClearOverlay();
 
         const stageData = STAGES[stageIndex];
         const maxWidth = Math.max(...stageData.map(row => row.length));
@@ -290,6 +293,9 @@ class Sokoban {
      * プレイヤー移動
      */
     move(direction) {
+        // クリア後は操作不可
+        if (this.isCleared) return false;
+
         const dir = DIRECTIONS[direction];
         if (!dir) return false;
 
@@ -360,7 +366,9 @@ class Sokoban {
 
         // クリアチェック
         if (this.checkClear()) {
+            this.isCleared = true;
             this.showMessage(`ステージ ${this.currentStage + 1} クリア！`, true);
+            this.showClearOverlay();
         }
 
         return true;
@@ -411,6 +419,27 @@ class Sokoban {
     }
 
     /**
+     * 箱の位置を取得
+     * @returns {Array<{row: number, col: number, onGoal: boolean}>}
+     */
+    getBoxPositions() {
+        const boxes = [];
+        for (let row = 0; row < this.board.length; row++) {
+            for (let col = 0; col < this.board[row].length; col++) {
+                const cell = this.board[row][col];
+                if (cell === BOX || cell === BOX_ON_GOAL) {
+                    boxes.push({
+                        row,
+                        col,
+                        onGoal: cell === BOX_ON_GOAL
+                    });
+                }
+            }
+        }
+        return boxes;
+    }
+
+    /**
      * 情報更新
      */
     updateInfo() {
@@ -438,6 +467,52 @@ class Sokoban {
         const messageElement = document.getElementById('message');
         messageElement.textContent = msg;
         messageElement.className = isClear ? 'message clear' : 'message';
+    }
+
+    /**
+     * クリアオーバーレイ表示
+     */
+    showClearOverlay() {
+        // 既存のオーバーレイがあれば削除
+        this.hideClearOverlay();
+
+        const boardElement = document.getElementById('board');
+        const overlay = document.createElement('div');
+        overlay.id = 'clear-overlay';
+        overlay.className = 'clear-overlay';
+        overlay.innerHTML = `
+            <div class="clear-content">
+                <div class="clear-icon">🎉</div>
+                <div class="clear-title">STAGE CLEAR!</div>
+                <div class="clear-stats">
+                    <div>ステージ ${this.currentStage + 1}</div>
+                    <div>手数: ${this.moveCount}</div>
+                </div>
+                <button class="clear-next-btn" id="clear-next-btn">
+                    ${this.currentStage < STAGES.length - 1 ? '次のステージへ →' : 'もう一度プレイ'}
+                </button>
+            </div>
+        `;
+        boardElement.appendChild(overlay);
+
+        // ボタンイベント
+        document.getElementById('clear-next-btn').addEventListener('click', () => {
+            if (this.currentStage < STAGES.length - 1) {
+                this.loadStage(this.currentStage + 1);
+            } else {
+                this.loadStage(0);
+            }
+        });
+    }
+
+    /**
+     * クリアオーバーレイ非表示
+     */
+    hideClearOverlay() {
+        const overlay = document.getElementById('clear-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
     }
 
     /**

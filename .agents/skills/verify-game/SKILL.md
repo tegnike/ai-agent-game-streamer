@@ -43,11 +43,75 @@ mkdir -p logs
 agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"
 ```
 
-### Phase 2: 実際にプレイしてクリアを目指す
+### Phase 1.5: 初期状態の整合性チェック（重要）
+
+**プレイを開始する前に、ゲームデータの整合性を確認する。**
+
+#### 倉庫番（sokoban）の場合
+
+```bash
+# 箱とゴールの数が一致しているか確認
+agent-browser eval "
+const boxes = game.getBoxPositions();
+const goals = game.goals;
+JSON.stringify({boxCount: boxes.length, goalCount: goals.length, match: boxes.length === goals.length})
+"
+```
+
+**チェック項目:**
+- `boxCount === goalCount` であること（不一致ならクリア不可能）
+- 各ステージで確認すること
+
+#### ボードゲーム（othello, gomoku）の場合
+
+```bash
+# 初期状態で有効な手があるか確認
+agent-browser eval "JSON.stringify(game.getValidMoves(game.currentPlayer))"
+```
+
+**チェック項目:**
+- 初期状態で有効な手が存在すること
+- ゲームオーバーでないこと
+
+**整合性エラーが見つかった場合は、Phase 4 でデータバグ（タイプD）として修正する。**
+
+### Phase 2: 実際にプレイしてクリアを目指す（1手ずつ検証）
 
 **play-gameスキルと同じ方法でゲームをプレイする。**
 
 ただし、**ソースコードを読めるので、APIの正確な挙動を把握した上でプレイできる。**
+
+#### 重要: 1手ずつ期待値と実測値を比較する
+
+**検証では「意図通りに動いているか」を確認することが目的。**
+単にクリアを目指すのではなく、各操作の結果が期待通りかを検証する。
+
+```bash
+# 悪い例: ただ移動するだけ
+agent-browser eval "game.move('up')"
+agent-browser eval "game.move('up')"
+
+# 良い例: 期待値と実測値を比較しながら移動
+agent-browser eval "
+const before = {...game.playerPos};
+const result = game.move('up');
+const after = {...game.playerPos};
+JSON.stringify({
+  before,
+  expected: {row: before.row - 1, col: before.col},
+  after,
+  result,
+  match: after.row === before.row - 1 && after.col === before.col
+})
+"
+```
+
+**検証すべき項目:**
+| 操作 | 期待値 | 実測値 | 一致するか |
+|------|--------|--------|-----------|
+| 移動前の位置 | - | `before` | - |
+| 移動後の位置 | `expected` | `after` | `match` |
+| 戻り値 | `true` or `false` | `result` | 期待通りか |
 
 #### ボードゲーム（othello, gomoku）
 
@@ -55,8 +119,13 @@ agent-browser screenshot "logs/$(date +%Y%m%d-%H%M%S)_initial.png"
 # 有効な手を確認
 agent-browser eval "JSON.stringify(game.getValidMoves(game.currentPlayer))"
 
-# 手を打つ（0.5秒以上間隔を空ける）
-agent-browser eval "game.handleCellClick(row, col)"
+# 手を打つ（期待値と実測値を比較）
+agent-browser eval "
+const beforePlayer = game.currentPlayer;
+const result = game.handleCellClick(row, col);
+const afterPlayer = game.currentPlayer;
+JSON.stringify({beforePlayer, afterPlayer, result, turnChanged: beforePlayer !== afterPlayer})
+"
 sleep 0.5
 
 # ゲーム終了まで繰り返す
@@ -66,11 +135,21 @@ agent-browser eval "game.gameOver"
 #### パズルゲーム（sokoban）
 
 ```bash
-# 現在位置を確認
-agent-browser eval "JSON.stringify(game.playerPos)"
+# 現在位置と箱の位置を確認
+agent-browser eval "JSON.stringify({playerPos: game.playerPos, boxes: game.getBoxPositions()})"
 
-# 移動（0.5秒以上間隔を空ける）
-agent-browser eval "game.move('right')"
+# 移動（期待値と実測値を比較）
+agent-browser eval "
+const beforePlayer = {...game.playerPos};
+const beforeBoxes = game.getBoxPositions();
+const result = game.move('right');
+const afterPlayer = {...game.playerPos};
+const afterBoxes = game.getBoxPositions();
+JSON.stringify({
+  player: {before: beforePlayer, after: afterPlayer, moved: result},
+  boxMoved: JSON.stringify(beforeBoxes) !== JSON.stringify(afterBoxes)
+})
+"
 sleep 0.5
 
 # クリアまで繰り返す
@@ -83,8 +162,13 @@ agent-browser eval "game.checkClear()"
 # ゲーム状態を確認
 agent-browser eval "JSON.stringify(game.getGameState())"
 
-# カードをプレイ
-agent-browser eval "game.playCard(0)"
+# カードをプレイ（期待値と実測値を比較）
+agent-browser eval "
+const before = game.getGameState();
+game.playCard(0);
+const after = game.getGameState();
+JSON.stringify({before, after})
+"
 ```
 
 ### Phase 3: 詰まったら原因を特定
@@ -117,6 +201,7 @@ agent-browser eval "game.playCard(0)"
    | A: READMEの曖昧さ | コードは正しいがドキュメントが不明確で誤操作した | README.md |
    | B: コードのバグ | APIが期待通りに動作しない | script.js |
    | C: API不足 | 必要な情報を取得するAPIがない | script.js + README.md |
+   | D: データバグ | ステージデータ自体が間違っている（箱とゴールの数不一致等） | script.js（STAGESデータ） |
 
 ### Phase 4: 修正を適用
 
@@ -166,6 +251,40 @@ get currentStageNumber() {
 | `game.currentStageNumber` | 現在のステージ番号（0-9） |
 ```
 
+**タイプD: データバグ**
+
+例: 倉庫番のステージ2で箱6個、ゴール5個だった（クリア不可能）
+
+```javascript
+// 修正前（箱が1つ多い）
+// ステージ 2
+[
+    "########",
+    "#      #",
+    "# .**$ #",
+    "# .  $ #",
+    "# . $$ #",  // ← $$ で箱が2つ
+    "#   @  #",
+    "########"
+],
+
+// 修正後（箱を1つ削除）
+// ステージ 2
+[
+    "########",
+    "#      #",
+    "# .**$ #",
+    "# .  $ #",
+    "# . $  #",  // ← $ 1つに修正
+    "#   @  #",
+    "########"
+],
+```
+
+**データバグの発見方法:**
+- Phase 1.5 の整合性チェックで検出
+- または、プレイ中に「全部正しく動かしてもクリアできない」場合に疑う
+
 ### Phase 5: 再プレイで検証
 
 ```bash
@@ -213,12 +332,15 @@ play-gameスキルはREADMEのみを参照するため、以下がすべて記�
 ```markdown
 ## 検証後チェックリスト
 
+- [ ] データ: 箱とゴールの数が一致している（倉庫番）
+- [ ] データ: 初期状態で有効な手がある（ボードゲーム）
 - [ ] README: 操作APIが記載されている
 - [ ] README: 状態取得プロパティが記載されている
 - [ ] README: 戻り値の型と意味が明記されている
 - [ ] README: 定数値（セルタイプ等）が説明されている
 - [ ] ゲーム: すべてのステージがクリア可能
 - [ ] ゲーム: APIがREADMEの説明通りに動作する
+- [ ] ゲーム: 1手ずつの操作が期待通りに動作する
 ```
 
 **すべてチェックが完了したら検証完了。**
@@ -270,12 +392,15 @@ YYYY-MM-DD HH:MM
 影響なし / [影響内容を記載]
 
 ## 検証後チェックリスト
+- [x] データ: 箱とゴールの数が一致している（倉庫番）
+- [x] データ: 初期状態で有効な手がある（ボードゲーム）
 - [x] README: 操作APIが記載されている
 - [x] README: 状態取得プロパティが記載されている
 - [x] README: 戻り値の型と意味が明記されている
 - [x] README: 定数値（セルタイプ等）が説明されている
 - [x] ゲーム: すべてのステージがクリア可能
 - [x] ゲーム: APIがREADMEの説明通りに動作する
+- [x] ゲーム: 1手ずつの操作が期待通りに動作する
 ```
 
 ---

@@ -79,6 +79,90 @@ h1 {
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     margin: 0 auto;
+    position: relative;
+}
+
+/* クリアオーバーレイ */
+.clear-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.clear-content {
+    text-align: center;
+    color: #fff;
+}
+
+.clear-icon {
+    font-size: 4rem;
+    margin-bottom: 10px;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.clear-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #f4d03f;
+    text-shadow: 0 0 20px rgba(244, 208, 63, 0.5);
+    margin-bottom: 15px;
+    animation: glow 1.5s infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 10px rgba(244, 208, 63, 0.5); }
+    to { text-shadow: 0 0 30px rgba(244, 208, 63, 0.8), 0 0 50px rgba(244, 208, 63, 0.4); }
+}
+
+.clear-stats {
+    font-size: 1.3rem;
+    margin-bottom: 25px;
+    line-height: 1.8;
+}
+
+.clear-stats div {
+    color: #ccc;
+}
+
+.clear-next-btn {
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+}
+
+.clear-next-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 25px rgba(39, 174, 96, 0.6);
+}
+
+.clear-next-btn:active {
+    transform: translateY(0);
 }
 
 /* セル共通 */

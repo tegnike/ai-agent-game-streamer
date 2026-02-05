@@ -52,12 +52,34 @@ agent-browser eval "game.init()"
 
 ## API
 
+### 操作メソッド
+
 | メソッド | 説明 |
 |---------|------|
-| `game.handleCellClick(row, col)` | 指定位置に石を置く（プレイヤーのターンのみ） |
-| `game.getValidMoves()` | 石の周囲の有効な手を取得 |
+| `game.handleCellClick(row, col)` | 指定位置に石を置く（プレイヤーのターンのみ）。戻り値なし |
+| `game.getValidMoves()` | 石の周囲の有効な手を取得。戻り値: `[{row, col}, ...]` |
 | `game.init()` | ゲームをリセット |
-| `game.countStones()` | 石の数を取得 `{ black, white }` |
+| `game.countStones()` | 石の数を取得。戻り値: `{ black, white }` |
+
+### 状態取得プロパティ
+
+| プロパティ | 説明 |
+|-----------|------|
+| `game.currentPlayer` | 現在のプレイヤー（1=黒, 2=白） |
+| `game.gameOver` | ゲーム終了フラグ（true/false） |
+| `game.board` | 盤面状態の2次元配列（19x19）。各セル: 0=空, 1=黒, 2=白 |
+| `game.lastMove` | 最後に打たれた手 `{row, col}` または `null` |
+| `game.winningCells` | 勝利ライン（5連）のセル配列 `[{row, col}, ...]` |
+| `game.moveCount` | 打たれた手の総数 |
+
+### 定数
+
+| 定数 | 値 | 説明 |
+|------|-----|------|
+| BLACK | 1 | 黒（プレイヤー・先手） |
+| WHITE | 2 | 白（CPU・後手） |
+| EMPTY | 0 | 空のセル |
+| BOARD_SIZE | 19 | 盤面サイズ |
 
 ## ファイル構成
 

@@ -42,12 +42,36 @@ agent-browser eval "game.init()"
 
 ## API
 
+### メソッド
+
 | メソッド | 説明 |
 |---------|------|
-| `game.handleCellClick(row, col)` | 指定位置に石を置く（プレイヤーのターンのみ） |
-| `game.getValidMoves(player)` | 有効な手の一覧を取得（1=黒, 2=白） |
-| `game.init()` | ゲームをリセット |
-| `game.countStones()` | 石の数を取得 `{ black, white }` |
+| `game.handleCellClick(row, col)` | 指定位置に石を置く（プレイヤー=黒のターンのみ有効）。戻り値なし（undefined）。CPUの応答は自動で実行される |
+| `game.getValidMoves(player)` | 有効な手の一覧を取得（player: 1=黒, 2=白）。戻り値: `[{ row: number, col: number }, ...]` |
+| `game.init()` | ゲームをリセットして初期状態に戻す |
+| `game.countStones()` | 石の数を取得。戻り値: `{ black: number, white: number }` |
+
+### プロパティ
+
+| プロパティ | 説明 |
+|-----------|------|
+| `game.gameOver` | ゲーム終了フラグ（`true`=終了, `false`=進行中） |
+| `game.currentPlayer` | 現在のターン（1=黒, 2=白）。黒のターンで `handleCellClick` が有効 |
+| `game.board` | 8x8の2次元配列。各セルの値: 0=空, 1=黒, 2=白 |
+
+### 定数
+
+| 値 | 意味 |
+|----|------|
+| `0` (EMPTY) | 空のセル |
+| `1` (BLACK) | 黒の石（プレイヤー） |
+| `2` (WHITE) | 白の石（CPU） |
+
+### ゲーム終了判定
+
+- `game.gameOver === true` のときゲーム終了
+- `game.countStones()` で最終スコアを確認
+- 黒が多ければプレイヤー勝利、白が多ければCPU勝利
 
 ## ファイル構成
 
