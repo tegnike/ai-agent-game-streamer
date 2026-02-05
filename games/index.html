@@ -111,7 +111,7 @@
          * グリッドレイアウトルール:
          * - 最大: 横4列 × 縦2行 = 8ゲーム/ページ
          * - 9個以上のゲームは別ページに分割すること
-         * - 現在5ゲームなので3列表示（3+2）
+         * - 現在6ゲームなので3列表示（3+3）
          */
         .grid {
             display: grid;
@@ -225,6 +225,14 @@
             text-shadow: 0 0 10px #ff3333;
         }
 
+        .card-chess:hover {
+            border-color: #c8a24e;
+        }
+        .card-chess:hover .card-name {
+            color: #c8a24e;
+            text-shadow: 0 0 10px #c8a24e;
+        }
+
         /* フッター */
         .footer {
             margin-top: 48px;
@@ -321,6 +329,12 @@
                 <img src="icons/minesweeper_bomb.png" alt="マインスイーパー" class="card-icon">
                 <div class="card-name">マインスイーパー</div>
                 <div class="card-desc">地雷を避けて全セルを開くパズル</div>
+            </a>
+
+            <a href="chess/" class="card card-chess">
+                <img src="icons/chess.png" alt="チェス" class="card-icon">
+                <div class="card-name">チェス</div>
+                <div class="card-desc">世界で最も人気のある戦略ボードゲーム</div>
             </a>
         </div>
 

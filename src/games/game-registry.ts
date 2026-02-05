@@ -46,6 +46,15 @@ export const GAME_REGISTRY: Record<GameId, GameConfig> = {
     apiMethods: ["handleCellClick", "toggleFlag", "getGameState", "init"],
     port: 8888,
   },
+  chess: {
+    id: "chess",
+    name: "Chess",
+    nameJa: "チェス",
+    directory: "chess",
+    controlMethod: "cell-click",
+    apiMethods: ["handleCellClick", "getValidMoves", "getGameState", "completePromotion", "init"],
+    port: 8888,
+  },
 };
 
 export function getRandomGame(exclude: GameId[] = []): GameConfig {

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チェス</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../common/header.css">
+</head>
+<body class="has-game-header">
+    <nav class="game-header" style="display:none">
+        <span class="game-header-title">チェス</span>
+        <a href="../" class="game-header-back">&larr; ゲーム一覧</a>
+    </nav>
+    <div class="container">
+        <div class="board-area">
+            <div class="rank-labels" id="rank-labels"></div>
+            <div class="board-wrapper">
+                <div id="board" class="board"></div>
+                <div class="file-labels" id="file-labels"></div>
+            </div>
+        </div>
+        <div class="game-panel">
+            <h1>チェス</h1>
+            <div class="game-info">
+                <div class="turn-display">
+                    現在のターン: <span id="current-turn" class="white-side">白（あなた）</span>
+                </div>
+                <div class="captured-area">
+                    <div class="captured-row">
+                        <span class="captured-label">白の持ち駒:</span>
+                        <span id="captured-white" class="captured-pieces"></span>
+                    </div>
+                    <div class="captured-row">
+                        <span class="captured-label">黒の持ち駒:</span>
+                        <span id="captured-black" class="captured-pieces"></span>
+                    </div>
+                </div>
+            </div>
+            <div id="message" class="message"></div>
+            <div class="button-row">
+                <button id="undo-btn" class="action-btn">待った</button>
+                <button id="reset-btn" class="action-btn reset-btn">リセット</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- プロモーション選択モーダル -->
+    <div id="promotion-modal" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-title">プロモーション: 駒を選んでください</div>
+            <div class="modal-pieces" id="promotion-choices"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

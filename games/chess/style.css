@@ -1,0 +1,362 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+/* ボードエリア（ラベル含む） */
+.board-area {
+    display: flex;
+    gap: 0;
+}
+
+.rank-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding-right: 6px;
+}
+
+.rank-labels .label {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    width: 20px;
+}
+
+.board-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-labels {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding-top: 6px;
+}
+
+.file-labels .label {
+    width: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    height: 20px;
+}
+
+/* ボード */
+.board {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    border: 4px solid #8b7355;
+    border-radius: 4px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.cell {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    font-size: 42px;
+    line-height: 1;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.cell.light {
+    background: #f0d9b5;
+}
+
+.cell.dark {
+    background: #b58863;
+}
+
+/* 選択中のマス */
+.cell.selected {
+    background: #7fc97f !important;
+}
+
+/* 移動可能なマス */
+.cell.valid-move::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    position: absolute;
+    pointer-events: none;
+}
+
+/* 移動可能で駒があるマス（キャプチャ） */
+.cell.valid-capture {
+    box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.25);
+}
+
+.cell.valid-capture::after {
+    display: none;
+}
+
+/* ホバー */
+.cell:hover {
+    filter: brightness(1.1);
+}
+
+/* 最後の手 */
+.cell.last-move {
+    background: rgba(255, 255, 100, 0.4) !important;
+}
+
+.cell.last-move.light {
+    background: #e8e87a !important;
+}
+
+.cell.last-move.dark {
+    background: #b5a63a !important;
+}
+
+/* チェック状態のキング */
+.cell.in-check {
+    background: radial-gradient(circle, #ff4444 0%, #ff000044 60%, transparent 80%) !important;
+}
+
+/* 駒テキスト */
+.piece {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s;
+    pointer-events: none;
+}
+
+/* 右パネル */
+.game-panel {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+    min-width: 240px;
+}
+
+h1 {
+    color: #fff;
+    font-size: 2rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.turn-display {
+    color: #fff;
+    font-size: 1.1rem;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.white-side {
+    color: #f0d9b5;
+    font-weight: bold;
+}
+
+.black-side {
+    color: #666;
+    background: #ddd;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+/* 持ち駒 */
+.captured-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.captured-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+}
+
+.captured-label {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.captured-pieces {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}
+
+.message {
+    color: #fff;
+    font-size: 1.2rem;
+    min-height: 36px;
+    padding: 8px;
+}
+
+.message.winner {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 1.3rem;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.button-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.action-btn {
+    padding: 10px 28px;
+    font-size: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+}
+
+.action-btn:active {
+    transform: translateY(0);
+}
+
+.action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* プロモーションモーダル */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal {
+    background: #2a2a3e;
+    border: 2px solid #8b7355;
+    border-radius: 12px;
+    padding: 24px 32px;
+    text-align: center;
+}
+
+.modal-title {
+    color: #fff;
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+}
+
+.modal-pieces {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.modal-piece {
+    width: 64px;
+    height: 64px;
+    font-size: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modal-piece:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #ffd700;
+    transform: scale(1.1);
+}
+
+/* レスポンシブ */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 560px) {
+    .board {
+        grid-template-columns: repeat(8, 44px);
+        grid-template-rows: repeat(8, 44px);
+    }
+
+    .cell {
+        width: 44px;
+        height: 44px;
+        font-size: 30px;
+    }
+
+    .rank-labels .label {
+        height: 44px;
+    }
+
+    .file-labels .label {
+        width: 44px;
+    }
+}
