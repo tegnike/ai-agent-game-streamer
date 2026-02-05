@@ -1,16 +1,16 @@
 ---
 name: generate-transparent-image
-description: 背景透過された画像を生成する。Gemini APIで画像生成後、PhotoRoom APIで背景を自動透過。透過PNG、切り抜き画像、背景なし画像の生成に使用。
+description: 背景透過された画像を生成する。Gemini APIで画像生成後、WaveSpeed AI (Bria) で背景を自動透過。透過PNG、切り抜き画像、背景なし画像の生成に使用。
 ---
 
 # 背景透過画像生成スキル
 
-Gemini APIで画像を生成し、PhotoRoom APIで背景を自動透過します。1回の指示で背景透過済みの画像を生成できます。
+Gemini APIで画像を生成し、WaveSpeed AI (Bria Remove Background) で背景を自動透過します。1回の指示で背景透過済みの画像を生成できます。
 
 ## 機能
 
 - テキストプロンプトから画像を生成
-- PhotoRoom APIで高精度な背景透過
+- WaveSpeed AI (Bria) で高精度な背景透過
 - PNG形式（アルファチャンネル付き）で出力
 
 ## 環境変数
@@ -18,7 +18,7 @@ Gemini APIで画像を生成し、PhotoRoom APIで背景を自動透過します
 以下の環境変数が設定されている必要があります：
 
 - `GEMINI_API_KEY` - Gemini APIキー
-- `PHOTOROOM_API_KEY` - PhotoRoom APIキー
+- `WAVESPEED_API_KEY` - WaveSpeed AIキー
 
 ## プロンプトの書き方
 
@@ -111,20 +111,22 @@ uv pip install requests pillow -p .venv
 ## 処理の流れ
 
 1. Gemini API（gemini-3-pro-image-preview）で画像生成
-2. PhotoRoom APIで背景を自動検出・透過
-3. PNG形式で保存
+2. WaveSpeed AIに画像をアップロード
+3. Bria Remove Background APIで背景を自動検出・透過
+4. PNG形式で保存
 
-## PhotoRoom APIについて
+## WaveSpeed AI APIについて
 
-- エンドポイント: `https://sdk.photoroom.com/v1/segment`
-- 対応フォーマット: PNG, JPEG, WebP
+- アップロード: `POST https://api.wavespeed.ai/api/v3/media/upload/binary`
+- 背景除去: `POST https://api.wavespeed.ai/api/v3/bria/remove-background`
+- 対応フォーマット: PNG, JPEG, WebP, GIF
 - 高精度な被写体検出と背景透過
-- API料金: 1回あたり約$0.02
+- API料金: 1回あたり約$0.018
 
 ## 注意事項
 
 - 生成された画像の著作権やライセンスについてはGoogleの利用規約を確認してください
-- PhotoRoom APIの利用にはAPIキーが必要です（https://www.photoroom.com/api から取得）
+- WaveSpeed AI APIの利用にはAPIキーが必要です（https://wavespeed.ai から取得）
 
 ## トラブルシューティング
 
@@ -139,7 +141,7 @@ uv pip install requests pillow -p .venv
 
 ### APIキーに特殊文字が含まれる場合
 
-`GEMINI_API_KEY`や`PHOTOROOM_API_KEY`に特殊文字（`+`, `/`, `=`など）が含まれている場合、curlコマンドでエラーが発生することがあります。
+`GEMINI_API_KEY`や`WAVESPEED_API_KEY`に特殊文字（`+`, `/`, `=`など）が含まれている場合、curlコマンドでエラーが発生することがあります。
 
 **解決策**:
 本スキルはPythonスクリプトを使用しているため、この問題は発生しません。

@@ -106,37 +106,137 @@ def generate_image(
         raise ValueError(f"画像データの取得に失敗しました: {data}") from e
 
 
-def remove_background(image_bytes: bytes, api_key: str) -> Image.Image:
+def upload_to_wavespeed(image_bytes: bytes, api_key: str) -> str:
     """
-    PhotoRoom APIで画像の背景を透過します
+    WaveSpeed AIに画像をアップロードします
 
     Args:
         image_bytes: 画像のバイトデータ
-        api_key: PhotoRoom API キー
+        api_key: WaveSpeed API キー
+
+    Returns:
+        アップロードされた画像のURL
+    """
+    url = "https://api.wavespeed.ai/api/v3/media/upload/binary"
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    files = {
+        "file": ("image.png", image_bytes, "image/png"),
+    }
+
+    response = requests.post(url, headers=headers, files=files, timeout=120)
+    response.raise_for_status()
+
+    data = response.json()
+    if data.get("code") != 200:
+        raise ValueError(f"アップロード失敗: {data}")
+
+    return data["data"]["download_url"]
+
+
+def remove_background(image_bytes: bytes, api_key: str) -> Image.Image:
+    """
+    WaveSpeed AI (Bria) で画像の背景を透過します
+
+    Args:
+        image_bytes: 画像のバイトデータ
+        api_key: WaveSpeed API キー
 
     Returns:
         背景透過されたPIL Image
     """
-    url = "https://sdk.photoroom.com/v1/segment"
+    # 1. 画像をWaveSpeed AIにアップロード
+    print("  画像をアップロード中...")
+    image_url = upload_to_wavespeed(image_bytes, api_key)
+    print(f"  アップロード完了: {image_url[:50]}...")
+
+    # 2. 背景除去APIを呼び出し（同期モード）
+    url = "https://api.wavespeed.ai/api/v3/bria/remove-background"
 
     headers = {
-        "x-api-key": api_key,
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
 
-    files = {
-        "image_file": ("image.png", image_bytes, "image/png"),
+    payload = {
+        "image": image_url,
+        "enable_sync_mode": True,
     }
 
-    data = {
-        "format": "png",
-        "channels": "rgba",
-    }
-
-    response = requests.post(url, headers=headers, files=files, data=data, timeout=120)
+    response = requests.post(url, headers=headers, json=payload, timeout=180)
     response.raise_for_status()
 
-    # レスポンスから画像を読み込む
-    return Image.open(io.BytesIO(response.content))
+    data = response.json()
+    if data.get("code") != 200:
+        raise ValueError(f"背景除去失敗: {data}")
+
+    # 3. 結果画像のURLを取得
+    task_data = data.get("data", {})
+    outputs = task_data.get("outputs", [])
+
+    if not outputs:
+        # 非同期の場合は結果を取得
+        task_id = task_data.get("id")
+        if task_id:
+            outputs = poll_for_result(task_id, api_key)
+        else:
+            raise ValueError(f"出力画像が取得できません: {data}")
+
+    result_url = outputs[0]
+
+    # 4. 結果画像をダウンロード
+    print("  結果画像をダウンロード中...")
+    img_response = requests.get(result_url, timeout=60)
+    img_response.raise_for_status()
+
+    return Image.open(io.BytesIO(img_response.content))
+
+
+def poll_for_result(task_id: str, api_key: str, max_attempts: int = 30) -> list[str]:
+    """
+    非同期タスクの結果をポーリングで取得します
+
+    Args:
+        task_id: タスクID
+        api_key: WaveSpeed API キー
+        max_attempts: 最大試行回数
+
+    Returns:
+        出力画像URLのリスト
+    """
+    import time
+
+    url = f"https://api.wavespeed.ai/api/v3/predictions/{task_id}/result"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    for attempt in range(max_attempts):
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+
+        data = response.json()
+        if data.get("code") != 200:
+            raise ValueError(f"結果取得失敗: {data}")
+
+        task_data = data.get("data", {})
+        status = task_data.get("status")
+
+        if status == "completed":
+            outputs = task_data.get("outputs", [])
+            if outputs:
+                return outputs
+            raise ValueError("出力画像がありません")
+        elif status == "failed":
+            raise ValueError(f"タスク失敗: {task_data}")
+
+        print(f"  処理中... ({attempt + 1}/{max_attempts})")
+        time.sleep(2)
+
+    raise TimeoutError("タスクがタイムアウトしました")
 
 
 def main() -> None:
@@ -154,6 +254,7 @@ def main() -> None:
 
 環境変数:
   GEMINI_API_KEY: Gemini APIキー（必須）
+  WAVESPEED_API_KEY: WaveSpeed AIキー（必須）
         """,
     )
     parser.add_argument("prompt", help="画像生成プロンプト")
@@ -185,9 +286,9 @@ def main() -> None:
         print("エラー: 環境変数 GEMINI_API_KEY が設定されていません", file=sys.stderr)
         sys.exit(1)
 
-    photoroom_api_key = os.environ.get("PHOTOROOM_API_KEY")
-    if not photoroom_api_key:
-        print("エラー: 環境変数 PHOTOROOM_API_KEY が設定されていません", file=sys.stderr)
+    wavespeed_api_key = os.environ.get("WAVESPEED_API_KEY")
+    if not wavespeed_api_key:
+        print("エラー: 環境変数 WAVESPEED_API_KEY が設定されていません", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -199,8 +300,8 @@ def main() -> None:
         )
         print("画像生成完了")
 
-        print("背景を透過中（PhotoRoom API）...")
-        transparent_image = remove_background(image_bytes, photoroom_api_key)
+        print("背景を透過中（WaveSpeed AI）...")
+        transparent_image = remove_background(image_bytes, wavespeed_api_key)
         print("背景透過完了")
 
         # 出力パスの処理
