@@ -53,18 +53,13 @@ export class BrowserManager {
    * Starts a headed browser and navigates to the given URL.
    */
   async launchDaemon(url: string): Promise<void> {
-    // Close any stale daemon first
-    try {
-      execSync("agent-browser close", { timeout: 5000, stdio: "pipe" });
-      await new Promise((r) => setTimeout(r, 1000));
-    } catch {
-      // No daemon running, that's fine
-    }
+    // Kill ALL stale daemon processes (agent-browser close only closes one)
+    await this.killAllStaleBrowsers();
 
     logger.info(`Launching browser: ${url}`);
 
     this.daemonProcess = spawn("agent-browser", ["--headed", "open", url], {
-      stdio: "pipe",
+      stdio: "ignore",
       detached: false,
     });
 
@@ -94,7 +89,7 @@ export class BrowserManager {
    * Navigate and verify the browser loaded the target URL.
    * Retries up to maxRetries times with delay between attempts.
    */
-  private async ensureNavigation(url: string, maxRetries = 3): Promise<void> {
+  private async ensureNavigation(url: string, maxRetries = 5): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const currentUrl = execSync("agent-browser get url", {
@@ -111,12 +106,46 @@ export class BrowserManager {
         execSync(`agent-browser open "${url}"`, { timeout: 15000, stdio: "pipe" });
 
         // Wait for page load
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 3000));
       } catch (err) {
         logger.error(`Navigation attempt ${attempt} failed:`, err);
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 2000));
       }
     }
+
+    // Final check - throw error if still not on target URL
+    const finalUrl = execSync("agent-browser get url", { timeout: 5000, stdio: "pipe" }).toString().trim();
+    if (finalUrl !== url) {
+      throw new Error(`Browser navigation failed. Current: ${finalUrl}, expected: ${url}`);
+    }
+  }
+
+  /**
+   * Kill ALL stale agent-browser daemons and Chromium instances.
+   */
+  private async killAllStaleBrowsers(): Promise<void> {
+    // 1. Try graceful close
+    try {
+      execSync("agent-browser close", { timeout: 5000, stdio: "pipe" });
+    } catch {
+      // No daemon running
+    }
+
+    // 2. Kill ALL daemon processes (pattern matches actual process path)
+    try {
+      execSync("pkill -f 'dist/daemon.js'", { timeout: 5000, stdio: "pipe" });
+    } catch {
+      // No processes
+    }
+
+    // 3. Kill Playwright Chromium instances
+    try {
+      execSync("pkill -f 'playwright_chromiumdev_profile'", { timeout: 5000, stdio: "pipe" });
+    } catch {
+      // No processes
+    }
+
+    await new Promise((r) => setTimeout(r, 1500));
   }
 
   /**
@@ -186,11 +215,7 @@ export class BrowserManager {
     }
 
     logger.info("Closing browser...");
-    try {
-      execSync("agent-browser close", { timeout: 5000, stdio: "pipe" });
-    } catch {
-      // Already closed or not responding
-    }
+    await this.killAllStaleBrowsers();
 
     if (this.daemonProcess) {
       this.daemonProcess.kill("SIGTERM");

@@ -72,8 +72,10 @@ open http://localhost:8080
 
 ### agent-browser セットアップ
 
+**必須バージョン: 0.9.1以上**（0.7.x以前はheadedモードでabout:blankのまま表示される問題あり）
+
 ```bash
-npm install -g agent-browser
+npm install -g agent-browser@latest
 agent-browser install
 agent-browser --headed open http://127.0.0.1:8888/games/othello/
 ```
