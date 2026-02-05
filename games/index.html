@@ -107,11 +107,17 @@
             50% { opacity: 0; }
         }
 
+        /*
+         * グリッドレイアウトルール:
+         * - 最大: 横4列 × 縦2行 = 8ゲーム/ページ
+         * - 9個以上のゲームは別ページに分割すること
+         * - 現在5ゲームなので3列表示（3+2）
+         */
         .grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
-            max-width: 600px;
+            max-width: 900px;
             width: 100%;
         }
 
@@ -245,6 +251,13 @@
             font-size: 14px;
             margin-bottom: 20px;
             animation: blink-cursor 1s step-end infinite;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+                max-width: 500px;
+            }
         }
 
         @media (max-width: 520px) {
