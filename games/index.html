@@ -155,10 +155,13 @@
         }
 
         .card-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
             display: block;
-            filter: drop-shadow(0 0 8px currentColor);
+            object-fit: contain;
+            image-rendering: pixelated;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
         }
 
         .card-name {
@@ -270,25 +273,25 @@
 
         <div class="grid">
             <a href="othello/" class="card card-othello">
-                <span class="card-icon">🟢</span>
+                <img src="icons/othello.png" alt="オセロ" class="card-icon">
                 <div class="card-name">オセロ</div>
                 <div class="card-desc">8x8ボードで石を挟んで裏返す定番ゲーム</div>
             </a>
 
             <a href="gomoku/" class="card card-gomoku">
-                <span class="card-icon">⭕</span>
+                <img src="icons/gomoku.png" alt="五目並べ" class="card-icon">
                 <div class="card-name">五目並べ</div>
                 <div class="card-desc">先に5つ並べた方が勝ちの対戦ゲーム</div>
             </a>
 
             <a href="sokoban/" class="card card-sokoban">
-                <span class="card-icon">📦</span>
+                <img src="icons/sokoban.png" alt="倉庫番" class="card-icon">
                 <div class="card-name">倉庫番</div>
                 <div class="card-desc">箱を押してゴールに運ぶパズルゲーム</div>
             </a>
 
             <a href="card-battle/" class="card card-battle">
-                <span class="card-icon">🃏</span>
+                <img src="icons/card-battle.png" alt="カードバトル" class="card-icon">
                 <div class="card-name">カードバトル</div>
                 <div class="card-desc">属性カードで戦うElement Clash</div>
             </a>
