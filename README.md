@@ -170,7 +170,7 @@ ai-agent-game-streamer/
 │   └── dist/                    #   ビルド済みファイル（自動生成）
 ├── .agents/skills/              # カスタムスキル
 │   ├── agent-browser/           #   ブラウザ自動操作（Playwright）
-│   ├── create-board-game/       #   ボードゲーム作成
+│   ├── create-game/       #   ボードゲーム作成
 │   ├── play-game/               #   ゲーム自動プレイ
 │   ├── generate-image/          #   画像生成（Gemini API）
 │   └── generate-transparent-image/  # 透過画像生成（Gemini + PhotoRoom）
@@ -405,7 +405,7 @@ agent-browser screenshot file.png  # スクリーンショット保存
 agent-browser close                # ブラウザを閉じる
 ```
 
-### create-board-game
+### create-game
 
 HTML/CSS/JavaScript でボードゲームを新規作成するスキルです。テンプレートとAI実装パターン（位置評価、minimax、パターンマッチング）が用意されています。
 

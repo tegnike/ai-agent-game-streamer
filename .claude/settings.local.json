@@ -21,7 +21,7 @@
       "Bash(1 sleep 1.2 done)",
       "Bash(ln:*)",
       "Bash(/Users/user/WorkSpace/ai-agent-game-streamer/.claude/skills/agent-browser/templates/setup-macos.sh)",
-      "Skill(create-board-game)",
+      "Skill(create-game)",
       "Bash(./bin/agent-browser press:*)",
       "Bash(node -p:*)",
       "Skill(play-game)",
@@ -51,7 +51,10 @@
       "Bash(git -C /Users/user/WorkSpace/ai-agent-game-streamer log --oneline --all)",
       "Bash(file:*)",
       "Bash(git -C /Users/user/WorkSpace/ai-agent-game-streamer log --oneline -20)",
-      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -5 {}')"
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -5 {}')",
+      "Bash(pgrep:*)",
+      "Bash(1 echo \"=== Page title ===\")",
+      "Bash(npm view:*)"
     ]
   }
 }

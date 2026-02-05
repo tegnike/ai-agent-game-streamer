@@ -1,5 +1,5 @@
 ---
-name: create-board-game
+name: create-game
 description: Creates browser-based board games (Othello, Gomoku, Chess, etc.) with HTML/CSS/JS. Use when the user wants to create a new board game, implement game logic, or add AI opponents.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python3 -m http.server*), Bash(open http://*)
 ---

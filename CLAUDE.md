@@ -26,7 +26,7 @@ TypeScriptで書かれたオーケストレーション層。OpenCode SDKを通�
 カスタムスキルが5つ定義されている：
 
 1. **agent-browser**: ブラウザ自動操作ツール。Playwrightベースでスナップショット、クリック、入力、JS実行、スクリーンショット等を実行
-2. **create-board-game**: HTML/CSS/JSでボードゲームを作成するスキル。セルサイズ基準あり（8x8→50px, 15x15→35px, 19x19→30px）
+2. **create-game**: HTML/CSS/JSでボードゲームを作成するスキル。セルサイズ基準あり（8x8→50px, 15x15→35px, 19x19→30px）
 3. **play-game**: agent-browserを使ってゲームを自動プレイするスキル。`--headed`必須、ソースコード読み取り禁止（README.mdのみ参照可）
 4. **generate-image**: Gemini APIベースの画像生成
 5. **generate-transparent-image**: 背景透過画像生成（Gemini + PhotoRoom API）
