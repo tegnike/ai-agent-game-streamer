@@ -19,24 +19,28 @@
 ## API
 
 ### `game.handleCellClick(row, col)`
-指定セルを左クリックと同様に開く。
+指定セルを左クリックと同様に開く。戻り値なし（`undefined`）。
+- 未開封セルをクリック → セルが開く（0なら連鎖で周囲も開く）
+- 旗が立っているセルをクリック → 何も起きない
+- 開封済みの数字セルをクリック → コード開き（周囲の旗数が数字と一致していれば未開封隣接セルを一括開封）
+- ゲームオーバー後 → 何も起きない
 
 ### `game.toggleFlag(row, col)`
-指定セルに旗を立てる / 外す。
+指定セルに旗を立てる / 外す。戻り値なし（`undefined`）。未開封セルのみ対象。
 
 ### `game.getGameState()`
 現在のゲーム状態を取得する。
 
 ```javascript
 {
-    difficulty: "easy",
+    difficulty: "easy",   // "easy" | "medium" | "hard"
     rows: 9,
     cols: 9,
     totalMines: 10,
-    opened: 15,
-    flagged: 3,
-    gameOver: false,
-    gameStarted: true,
+    opened: 15,           // 開封済みセル数
+    flagged: 3,           // 旗を立てたセル数
+    gameOver: false,       // true: ゲーム終了（勝敗問わず）
+    gameStarted: true,     // true: 最初のクリック後
     timer: 42
 }
 ```
@@ -46,9 +50,26 @@
 
 ### ボード状態の読み取り
 
-- `game.board[row][col]`: セルの値（-1: 地雷, 0: 空, 1-8: 周囲の地雷数）※ゲーム開始前は全て0
+- `game.board[row][col]`: セルの値（-1: 地雷, 0: 空, 1-8: 周囲の地雷数）※最初のクリック前は全て0、クリック後に地雷が配置される
 - `game.revealed[row][col]`: 開封済みかどうか（true/false）
 - `game.flagged[row][col]`: 旗が立っているか（true/false）
+- `game.gameOver`: ゲーム終了フラグ（true/false）
+- `game.rows`, `game.cols`: 盤面サイズ
+- `game.totalMines`: 地雷の総数
+
+### クリア判定
+
+未開封セル数が地雷数と一致するとクリア。クリア時は `game.gameOver === true` になり、メッセージに「クリア」と表示される。
+地雷を踏んだ場合も `game.gameOver === true` になる（メッセージで勝敗を区別可能）。
+
+### プレイ戦略
+
+1. まず中央付近をクリックして開始（最初のクリックは必ず安全）
+2. `game.board` で開封済みセルの数字を確認
+3. 数字と周囲の未開封・旗セル数から地雷位置を推理
+4. 安全と確信したセルを `handleCellClick` で開く
+5. 地雷と確信したセルに `toggleFlag` で旗を立てる
+6. `getGameState()` の `gameOver` でゲーム終了を確認
 
 ## ルール
 
