@@ -1,36 +1,5 @@
-// Shared types mirroring server-side definitions
-
+// === Game Types ===
 export type GameId = "othello" | "gomoku" | "sokoban" | "card-battle";
-
-// --- LLM Configuration ---
-
-export type ProviderId = "openai" | "anthropic" | "google" | "zai";
-
-export interface ModelInfo {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-export interface ProviderInfo {
-  id: ProviderId;
-  name: string;
-  models: ModelInfo[];
-  envKey: string;
-  hasApiKey: boolean;
-}
-
-export interface LLMConfig {
-  provider: ProviderId;
-  model: string;
-  apiKey?: string;
-}
-
-export interface LLMState {
-  current: LLMConfig | null;
-  pending: LLMConfig | null;
-  requiresRestart: boolean;
-}
 
 export interface GameConfig {
   id: GameId;
@@ -42,6 +11,7 @@ export interface GameConfig {
   port: number;
 }
 
+// === Stream Types ===
 export type StreamMode = "single" | "multi";
 
 export type StreamPhase =
@@ -57,8 +27,11 @@ export interface StreamConfig {
   selectedGames?: GameId[];
   pauseBetweenGames?: number;
   commentsEnabled?: boolean;
+  visualEndpoint?: string;
+  visualBatchInterval?: number;
 }
 
+// === Browser Types ===
 export type BrowserMode = "daemon" | "cdp" | "none";
 
 export interface BrowserState {
@@ -68,6 +41,7 @@ export interface BrowserState {
   launchedByUs: boolean;
 }
 
+// === Stream State ===
 export interface StreamState {
   phase: StreamPhase;
   mode: StreamMode;
@@ -84,6 +58,7 @@ export interface StreamState {
   browser: BrowserState;
 }
 
+// === Agent Activity ===
 export type AgentActivityType = "text" | "reasoning" | "tool";
 
 export interface AgentActivity {
@@ -95,6 +70,7 @@ export interface AgentActivity {
   timestamp: number;
 }
 
+// === Comments ===
 export type CommentStatus = "received" | "queued" | "answered" | "dismissed";
 
 export interface ViewerComment {
@@ -106,19 +82,7 @@ export interface ViewerComment {
   timestamp: number;
 }
 
-// WebSocket protocol
-export type AdminCommand =
-  | { type: "stream:start"; config: StreamConfig }
-  | { type: "stream:stop" }
-  | { type: "stream:pause" }
-  | { type: "stream:resume" }
-  | { type: "game:skip" }
-  | { type: "admin:message"; text: string }
-  | { type: "comment:queue"; commentId: string }
-  | { type: "comment:dismiss"; commentId: string }
-  | { type: "llm:config"; config: LLMConfig }
-  | { type: "llm:restart" };
-
+// === WebSocket Protocol ===
 export type ServerEvent =
   | { type: "state:full"; data: StreamState }
   | { type: "state:update"; data: Partial<StreamState> }
@@ -126,7 +90,12 @@ export type ServerEvent =
   | { type: "agent:activity:delta"; id: string; delta: string }
   | { type: "game:event"; data: { type: string; gameId: GameId } }
   | { type: "comment:updated"; data: ViewerComment }
-  | { type: "llm:state"; data: LLMState }
+  | { type: "llm:state"; data: unknown } // LLMState型はadmin-ui固有
   | { type: "error"; message: string };
 
-export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+// === Connection ===
+export type ConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "reconnecting";

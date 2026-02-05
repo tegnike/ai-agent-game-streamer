@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useStreamStore } from "../store/stream-store";
-import type { AdminCommand, ServerEvent } from "../types";
+import type { AdminCommand, ServerEvent, LLMState } from "../types";
 
 const RECONNECT_CONFIG = {
   initialDelay: 1000,
@@ -61,10 +61,12 @@ export function useWebSocket() {
           case "comment:updated":
             updateComment(msg.data);
             break;
-          case "llm:state":
-            setLLMState(msg.data);
-            addEventLog("llm", `LLM state updated (pending: ${msg.data.requiresRestart})`);
+          case "llm:state": {
+            const llmState = msg.data as LLMState;
+            setLLMState(llmState);
+            addEventLog("llm", `LLM state updated (pending: ${llmState.requiresRestart})`);
             break;
+          }
           case "error":
             addEventLog("error", msg.message);
             break;

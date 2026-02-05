@@ -4,15 +4,22 @@
   "description": "AI Agent Game Streamer - OpenCode SDK powered game streaming",
   "type": "module",
   "main": "dist/index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
     "play": "tsx src/index.ts --game",
     "stream": "tsx src/index.ts --loop",
     "stream:managed": "tsx src/index.ts --admin --loop",
-    "admin:dev": "cd admin-ui && npm run dev",
-    "admin:build": "cd admin-ui && npm run build",
+    "build": "tsc",
     "test": "tsx --test src/stream/__tests__/*.test.ts",
-    "build": "tsc"
+    "admin:dev": "npm run dev -w @agent-game/admin-ui",
+    "admin:build": "npm run build -w @agent-game/admin-ui",
+    "stream:dev": "npm run dev -w @agent-game/stream-ui",
+    "stream:build": "npm run build -w @agent-game/stream-ui",
+    "shared:build": "npm run build -w @agent-game/shared",
+    "ui:build": "npm run shared:build && npm run admin:build && npm run stream:build"
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",

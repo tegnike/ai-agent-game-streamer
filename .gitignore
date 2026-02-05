@@ -5,3 +5,7 @@ dist/
 logs/
 *.log
 /*.png
+
+# packages
+packages/*/node_modules/
+packages/shared/dist/
