@@ -3,6 +3,13 @@ import type { GameConfig, GameId, StreamingState } from "./types.js";
 import { buildPlayPrompt, buildGameTransitionPrompt, type PlayPromptOptions } from "./prompts/play-game.js";
 import { logger } from "./utils/logger.js";
 
+export class EmptyResponseError extends Error {
+  constructor(gameNameJa: string) {
+    super(`Model returned empty response for ${gameNameJa}. The AI agent did not take any action.`);
+    this.name = "EmptyResponseError";
+  }
+}
+
 export class SessionManager {
   private client: OpencodeClient;
   private state: StreamingState;
@@ -27,9 +34,11 @@ export class SessionManager {
       logger.info(`Reusing session: ${sessionId} for ${game.nameJa}`);
     } else {
       // 初回: 新規作成
+      logger.debug(`createGameSession: calling client.session.create for ${game.nameJa}...`);
       const result = await this.client.session.create({
         body: { title: "ニケの配信" },
       });
+      logger.debug(`createGameSession: result=${JSON.stringify(result.data)}`);
       sessionId = result.data!.id;
       this.state.sessionId = sessionId;
       logger.info(`Session created: ${sessionId} for ${game.nameJa}`);
@@ -48,17 +57,44 @@ export class SessionManager {
     const prompt = isFirstGame
       ? buildPlayPrompt(game, browserOptions)
       : buildGameTransitionPrompt(game, browserOptions);
-    logger.info(`Sending play command for ${game.nameJa}...`);
+    logger.info(`Sending play command for ${game.nameJa} (prompt length: ${prompt.length} chars)...`);
+    logger.debug(`sendPlayCommand: prompt preview:\n${prompt.substring(0, 200)}...`);
 
     this.promptAbortController = new AbortController();
     try {
-      await this.client.session.prompt({
+      const startTime = Date.now();
+      const result = await this.client.session.prompt({
         path: { id: sessionId },
         body: {
           parts: [{ type: "text", text: prompt }],
         },
         signal: this.promptAbortController.signal,
       } as never);
+      const elapsed = Date.now() - startTime;
+
+      // Log response details
+      const rawResult = result as Record<string, unknown>;
+      const data = rawResult.data as Record<string, unknown> | undefined;
+      const info = data?.info as Record<string, unknown> | undefined;
+      const parts = data?.parts as unknown[] | undefined;
+      const partsCount = parts?.length ?? 0;
+
+      if (info) {
+        const tokens = info.tokens as Record<string, number> | undefined;
+        logger.info(`sendPlayCommand: completed in ${elapsed}ms - model=${info.modelID}, finish=${info.finish}, parts=${partsCount}, tokens(in=${tokens?.input ?? 0}/out=${tokens?.output ?? 0}), error=${info.error ?? "none"}`);
+      } else {
+        logger.info(`sendPlayCommand: completed in ${elapsed}ms - data=${JSON.stringify(data)}, parts=${partsCount}`);
+      }
+
+      // Detect empty response (model returned nothing)
+      if (partsCount === 0 && elapsed < 5000) {
+        logger.error(`sendPlayCommand: model returned empty response in ${elapsed}ms - the AI agent did not take any action`);
+        throw new EmptyResponseError(game.nameJa);
+      }
+    } catch (err) {
+      if (err instanceof EmptyResponseError) throw err;
+      logger.error(`sendPlayCommand: prompt threw: ${err}`);
+      throw err;
     } finally {
       this.promptAbortController = null;
     }

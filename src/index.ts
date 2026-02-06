@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { startServer, connectToServer, killPort } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
@@ -21,6 +22,11 @@ async function main() {
   const loopMode = args.includes("--loop");
   const connectMode = args.includes("--connect");
   const adminMode = args.includes("--admin");
+
+  // Enable debug logging with --debug flag
+  if (args.includes("--debug")) {
+    process.env.DEBUG = "1";
+  }
 
   const gameArg = parseArg(args, "--game=");
   const providerName = parseArg(args, "--provider=");
@@ -255,8 +261,10 @@ async function main() {
 
       // Listen for stream start events
       eventHub.on("stream:started", async () => {
+        logger.info("Received stream:started event, launching managed stream...");
         try {
           await orchestrator.startManagedStream();
+          logger.info("Managed stream completed normally");
         } catch (error) {
           logger.error("Managed stream error:", error);
           streamManager!.transition("stopped");

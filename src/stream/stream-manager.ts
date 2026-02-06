@@ -44,7 +44,7 @@ export class StreamManager {
     const allowed = ALLOWED_TRANSITIONS[from];
 
     if (!allowed || !allowed.has(to)) {
-      const msg = `Invalid transition: ${from} -> ${to}`;
+      const msg = `Invalid transition: ${from} -> ${to} (allowed from ${from}: ${allowed ? [...allowed].join(", ") : "none"})`;
       logger.error(msg);
       this.hub.setError(msg);
       this.hub.emit("stream:stopped", { error: msg });

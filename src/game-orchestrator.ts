@@ -1,5 +1,5 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
-import { SessionManager } from "./session-manager.js";
+import { SessionManager, EmptyResponseError } from "./session-manager.js";
 import { EventMonitor } from "./event-monitor.js";
 import { ProcessManager } from "./utils/process-manager.js";
 import { BrowserManager } from "./utils/browser-manager.js";
@@ -11,6 +11,8 @@ import type { EventHub } from "./stream/event-hub.js";
 import type { StreamManager } from "./stream/stream-manager.js";
 
 const LOBBY_URL = `http://127.0.0.1:${GAME_SERVER_PORT}/index.html`;
+const MAX_EMPTY_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
 
 export class GameOrchestrator {
   private sessionManager: SessionManager;
@@ -76,19 +78,30 @@ export class GameOrchestrator {
    */
   async initPersistent(): Promise<void> {
     // Start persistent HTTP server from games/ root if not running
-    if (!this.processManager.isRunning()) {
+    const serverRunning = this.processManager.isRunning();
+    logger.debug(`initPersistent: HTTP server running=${serverRunning}`);
+    if (!serverRunning) {
+      logger.info("Starting HTTP server...");
       await this.processManager.startPersistentServer(GAME_SERVER_PORT);
+      logger.info("HTTP server started");
     }
 
     // Detect or launch browser
-    if (!this.browserManager.getState().running) {
+    const browserState = this.browserManager.getState();
+    logger.debug(`initPersistent: browser state=${JSON.stringify(browserState)}`);
+    if (!browserState.running) {
+      logger.info("Browser not running, detecting...");
       const detected = await this.browserManager.detectRunning();
+      logger.debug(`initPersistent: browser detected=${detected}`);
       if (!detected) {
+        logger.info("Launching browser daemon...");
         await this.browserManager.launchDaemon(LOBBY_URL);
+        logger.info("Browser daemon launched");
       }
       this.eventHub?.setBrowserState(this.browserManager.getState());
       this.eventHub?.emit("browser:launched");
     }
+    logger.debug("initPersistent: done");
   }
 
   async playSingleGame(gameId: GameId): Promise<void> {
@@ -108,29 +121,48 @@ export class GameOrchestrator {
 
     // Emit game lifecycle events
     this.eventHub?.setCurrentGame(gameId, game);
-    this.eventHub?.emit("game:starting", { gameId, gameConfig: game });
+    this.eventHub?.emit("game:starting", { type: "game:starting", gameId, gameConfig: game });
 
     // 1. Ensure persistent infrastructure (idempotent)
-    await this.initPersistent();
+    logger.debug("playSingleGame: step 1 - initPersistent");
+    try {
+      await this.initPersistent();
+    } catch (err) {
+      logger.error("playSingleGame: initPersistent failed:", err);
+      throw err;
+    }
+    logger.debug("playSingleGame: step 1 done");
 
     // 2. Create OpenCode session
-    const sessionId = await this.sessionManager.createGameSession(game);
+    logger.debug("playSingleGame: step 2 - createGameSession");
+    let sessionId: string;
+    try {
+      sessionId = await this.sessionManager.createGameSession(game);
+    } catch (err) {
+      logger.error("playSingleGame: createGameSession failed:", err);
+      throw err;
+    }
     this.activeSessionId = sessionId;
     this.eventHub?.setSessionId(sessionId);
-    this.eventHub?.emit("game:started", { gameId, gameConfig: game });
+    this.eventHub?.emit("game:started", { type: "game:started", gameId, gameConfig: game });
+    logger.debug(`playSingleGame: step 2 done, sessionId=${sessionId}`);
 
     // 3. Start event monitoring (non-blocking) + send play command concurrently
+    logger.debug("playSingleGame: step 3 - startMonitoring");
     const gameComplete = new Promise<void>((resolve, reject) => {
       this.eventMonitor.startMonitoring(
         sessionId,
         () => {
+          logger.info("Game completed (session idle)");
           this.sessionManager.markGameCompleted(gameId);
           resolve();
         },
         (error) => {
+          logger.error("Game error (from event monitor):", error);
           reject(error);
         },
         () => {
+          logger.info("Game aborted (onAbort callback)");
           resolve(); // onAbort: resolve to unblock Promise.allSettled
         },
       );
@@ -138,18 +170,24 @@ export class GameOrchestrator {
 
     // 4. Send play command concurrently (don't await directly — it blocks until agent finishes)
     const isFirstGame = this.sessionManager.getState().gamesPlayed.length === 0;
+    logger.info(`Sending play command to session ${sessionId}...`);
     const sendPromise = this.sessionManager.sendPlayCommand(sessionId, game, {
       browserPrefix: this.browserManager.getAgentBrowserPrefix(),
       gameBaseUrl: `http://127.0.0.1:${GAME_SERVER_PORT}`,
     }, isFirstGame);
     // Suppress unhandled rejection so we can abandon this promise on abort
-    sendPromise.catch(() => {});
+    sendPromise.catch((err) => {
+      logger.debug(`sendPlayCommand rejected (may be expected on abort): ${err}`);
+    });
 
     // 5. Wait for game completion (idle, error, or external abort)
+    logger.info("Waiting for game completion...");
     let gameError: unknown = null;
     try {
       await gameComplete;
+      logger.info("gameComplete promise resolved");
     } catch (err) {
+      logger.error("gameComplete promise rejected:", err);
       gameError = err;
     }
 
@@ -189,7 +227,7 @@ export class GameOrchestrator {
     this.eventHub?.setCurrentGame(null, null);
     this.eventHub?.setAgentThought(null);
     this.eventHub?.setAgentSpeech(null);
-    this.eventHub?.emit("game:completed", { gameId });
+    this.eventHub?.emit("game:completed", { type: "game:completed", gameId });
     logger.info(`=== Game completed: ${game.nameJa} ===`);
     logger.info(`Log saved: ${logPath}`);
   }
@@ -325,6 +363,7 @@ export class GameOrchestrator {
 
     while (this.streamManager.isRunning()) {
       const phase = this.streamManager.getCurrentPhase();
+      logger.debug(`managedStream loop: phase=${phase}`);
 
       // Wait while paused
       if (phase === "paused") {
@@ -333,13 +372,17 @@ export class GameOrchestrator {
       }
 
       // Skip idle/stopped states (shouldn't happen, but safety)
-      if (phase === "stopped" || phase === "idle") break;
+      if (phase === "stopped" || phase === "idle") {
+        logger.info(`managedStream: exiting loop due to phase=${phase}`);
+        break;
+      }
 
       // Select next game (use pausedGameId if resuming from pause)
       let game;
       if (this.pausedGameId) {
         game = GAME_REGISTRY[this.pausedGameId];
         this.pausedGameId = null;
+        logger.info(`Resuming paused game: ${game.nameJa}`);
       } else {
         const state = this.sessionManager.getState();
         if (selectedGames && selectedGames.length > 0) {
@@ -352,18 +395,36 @@ export class GameOrchestrator {
         } else {
           game = getRandomGame(state.gamesPlayed);
         }
+        logger.info(`Selected game: ${game.nameJa} (${game.id})`);
       }
 
       // Transition to playing
-      this.streamManager.transition("playing");
+      const transitionOk = this.streamManager.transition("playing");
+      logger.debug(`managedStream: transition to playing=${transitionOk}`);
 
-      try {
-        await this.playSingleGame(game.id);
-      } catch (error) {
-        logger.error(`Error playing ${game.name}:`, error);
-        this.eventMonitor.stopMonitoring();
-        await this.checkBrowserHealth();
-        this.eventHub.setError(String(error));
+      // Play game with retry on empty model response
+      let gameSucceeded = false;
+      for (let attempt = 1; attempt <= MAX_EMPTY_RETRIES; attempt++) {
+        try {
+          logger.info(`--- playSingleGame(${game.id}) starting${attempt > 1 ? ` (retry ${attempt}/${MAX_EMPTY_RETRIES})` : ""} ---`);
+          await this.playSingleGame(game.id);
+          logger.info(`--- playSingleGame(${game.id}) completed ---`);
+          gameSucceeded = true;
+          break;
+        } catch (error) {
+          if (error instanceof EmptyResponseError && attempt < MAX_EMPTY_RETRIES) {
+            logger.info(`Model returned empty response (attempt ${attempt}/${MAX_EMPTY_RETRIES}), retrying in ${RETRY_DELAY_MS}ms...`);
+            this.eventMonitor.stopMonitoring();
+            this.activeSessionId = null;
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            continue;
+          }
+          logger.error(`Error playing ${game.name}:`, error);
+          this.eventMonitor.stopMonitoring();
+          await this.checkBrowserHealth();
+          this.eventHub.setError(String(error));
+          break;
+        }
       }
 
       // Check if skip was requested (consume it)

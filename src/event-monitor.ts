@@ -50,12 +50,20 @@ export class EventMonitor {
     this.reasoningAccum = "";
 
     try {
+      logger.debug(`startMonitoring: subscribing to events for session=${sessionId}...`);
       const result = await this.client.event.subscribe();
+      logger.info(`Event subscription established, waiting for events...`);
 
+      let eventCount = 0;
       for await (const event of result.stream) {
-        if (this.abortController.signal.aborted) break;
+        if (this.abortController.signal.aborted) {
+          logger.debug("startMonitoring: abort signal received, breaking event loop");
+          break;
+        }
 
         const typedEvent = event as Event;
+        eventCount++;
+        logger.debug(`Event #${eventCount}: type=${typedEvent.type}, props=${JSON.stringify((typedEvent.properties as Record<string, unknown>)?.sessionID ?? "n/a")}`);
 
         switch (typedEvent.type) {
           case "session.idle":
@@ -67,6 +75,8 @@ export class EventMonitor {
               this.eventHub?.emit("agent:idle");
               onIdle();
               return;
+            } else {
+              logger.debug(`session.idle for different session: ${typedEvent.properties.sessionID}`);
             }
             break;
 
@@ -87,14 +97,19 @@ export class EventMonitor {
             break;
 
           default:
+            logger.debug(`Unhandled event type: ${typedEvent.type}`);
             break;
         }
       }
+
+      logger.info(`Event stream ended (received ${eventCount} events total)`);
     } catch (err) {
       if (this.abortController && !this.abortController.signal.aborted) {
         logger.error("Event monitoring error:", err);
         this.gameLogger?.log(`Event monitoring error: ${err}`);
         onError(err);
+      } else {
+        logger.debug(`Event monitoring catch (aborted): ${err}`);
       }
     }
   }
@@ -225,12 +240,16 @@ export class EventMonitor {
   }
 
   stopMonitoring(): void {
+    logger.debug("stopMonitoring called");
     this.flushBuffers();
     this.abortController?.abort();
     this.abortController = null;
     this.gameLogger?.close();
     this.gameLogger = null;
-    this.onAbortCallback?.();
-    this.onAbortCallback = null;
+    if (this.onAbortCallback) {
+      logger.debug("stopMonitoring: calling onAbortCallback");
+      this.onAbortCallback();
+      this.onAbortCallback = null;
+    }
   }
 }

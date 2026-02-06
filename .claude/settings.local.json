@@ -59,6 +59,7 @@
       "Bash(1 echo \"=== Page title ===\")",
       "Bash(npm view:*)",
       "Bash(agent-browser screenshot:*)",
+      "Bash(opencode:*)",
       "Bash"
     ]
   }
