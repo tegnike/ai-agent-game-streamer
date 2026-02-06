@@ -1,6 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type { GameConfig, GameId, StreamingState } from "./types.js";
-import { buildPlayPrompt, type PlayPromptOptions } from "./prompts/play-game.js";
+import { buildPlayPrompt, buildGameTransitionPrompt, type PlayPromptOptions } from "./prompts/play-game.js";
 import { logger } from "./utils/logger.js";
 
 export class SessionManager {
@@ -20,19 +20,34 @@ export class SessionManager {
   }
 
   async createGameSession(game: GameConfig): Promise<string> {
-    const result = await this.client.session.create({
-      body: { title: `Play ${game.nameJa}` },
-    });
-    const sessionId = result.data!.id;
-    this.state.sessionId = sessionId;
+    let sessionId: string;
+    if (this.state.sessionId) {
+      // 既存セッションを再利用
+      sessionId = this.state.sessionId;
+      logger.info(`Reusing session: ${sessionId} for ${game.nameJa}`);
+    } else {
+      // 初回: 新規作成
+      const result = await this.client.session.create({
+        body: { title: "ニケの配信" },
+      });
+      sessionId = result.data!.id;
+      this.state.sessionId = sessionId;
+      logger.info(`Session created: ${sessionId} for ${game.nameJa}`);
+    }
     this.state.currentGame = game.id;
     this.state.isPlaying = true;
-    logger.info(`Session created: ${sessionId} for ${game.nameJa}`);
     return sessionId;
   }
 
-  async sendPlayCommand(sessionId: string, game: GameConfig, browserOptions?: PlayPromptOptions): Promise<void> {
-    const prompt = buildPlayPrompt(game, browserOptions);
+  async sendPlayCommand(
+    sessionId: string,
+    game: GameConfig,
+    browserOptions?: PlayPromptOptions,
+    isFirstGame: boolean = true,
+  ): Promise<void> {
+    const prompt = isFirstGame
+      ? buildPlayPrompt(game, browserOptions)
+      : buildGameTransitionPrompt(game, browserOptions);
     logger.info(`Sending play command for ${game.nameJa}...`);
 
     this.promptAbortController = new AbortController();
@@ -87,6 +102,14 @@ export class SessionManager {
     this.state.gamesPlayed.push(gameId);
     this.state.currentGame = null;
     this.state.isPlaying = false;
+    // Note: sessionId は意図的にクリアしない（永続セッション）
+  }
+
+  resetSession(): void {
+    this.state.sessionId = null;
+    this.state.currentGame = null;
+    this.state.isPlaying = false;
+    // gamesPlayed はリセットしない（ゲーム選択の重複回避に使用）
   }
 
   resetGamesPlayed(): void {

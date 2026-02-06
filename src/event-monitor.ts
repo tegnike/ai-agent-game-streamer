@@ -36,6 +36,12 @@ export class EventMonitor {
     onError: (error: unknown) => void,
     onAbort?: () => void,
   ): Promise<void> {
+    // 既存の購読があれば停止（多重購読防止）
+    if (this.abortController) {
+      logger.info("Stopping existing event subscription before starting new one");
+      this.stopMonitoring();
+    }
+
     this.abortController = new AbortController();
     this.onAbortCallback = onAbort ?? null;
     this.textBuffer = "";

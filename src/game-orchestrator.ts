@@ -64,6 +64,9 @@ export class GameOrchestrator {
     if (this.eventHub) {
       this.eventMonitor.setEventHub(this.eventHub);
     }
+    // LLM再起動時は旧セッションIDが無効になるためクリア
+    this.activeSessionId = null;
+    this.eventHub?.setSessionId(null);
     logger.info("GameOrchestrator client updated");
   }
 
@@ -134,10 +137,11 @@ export class GameOrchestrator {
     });
 
     // 4. Send play command concurrently (don't await directly — it blocks until agent finishes)
+    const isFirstGame = this.sessionManager.getState().gamesPlayed.length === 0;
     const sendPromise = this.sessionManager.sendPlayCommand(sessionId, game, {
       browserPrefix: this.browserManager.getAgentBrowserPrefix(),
       gameBaseUrl: `http://127.0.0.1:${GAME_SERVER_PORT}`,
-    });
+    }, isFirstGame);
     // Suppress unhandled rejection so we can abandon this promise on abort
     sendPromise.catch(() => {});
 
@@ -178,12 +182,11 @@ export class GameOrchestrator {
     }
 
     // 6. Cleanup: navigate back to lobby (don't stop server or close browser)
-    this.activeSessionId = null;
+    // Note: activeSessionId と sessionId はクリアしない（永続セッション）
     this.eventMonitor.stopMonitoring();
     await this.browserManager.navigate(LOBBY_URL);
     this.eventHub?.addGamePlayed(gameId);
     this.eventHub?.setCurrentGame(null, null);
-    this.eventHub?.setSessionId(null);
     this.eventHub?.setAgentThought(null);
     this.eventHub?.setAgentSpeech(null);
     this.eventHub?.emit("game:completed", { gameId });
@@ -233,6 +236,8 @@ export class GameOrchestrator {
     }
 
     this.activeSessionId = null;
+    // abortしたセッションは再利用不可 — 次回は新規作成
+    this.sessionManager.resetSession();
   }
 
   /**
@@ -378,29 +383,6 @@ export class GameOrchestrator {
       // Multi mode: transition between games
       if (!this.streamManager.isRunning()) break;
       this.streamManager.transition("transitioning");
-
-      // Inject queued comments between games
-      const queued = this.eventHub.getQueuedComments();
-      if (queued.length > 0) {
-        const commentText = queued
-          .map((c) => `${c.authorName}: "${c.text}"`)
-          .join("\n");
-        const prompt = [
-          "ゲーム間の休憩時間です。視聴者からのコメントを確認してください:",
-          "",
-          commentText,
-          "",
-          "気になるコメントがあれば反応してください。その後、次のゲームの準備をします。",
-        ].join("\n");
-        try {
-          await this.sessionManager.injectMessage(prompt);
-          for (const c of queued) {
-            this.eventHub.updateCommentStatus(c.id, "answered");
-          }
-        } catch (err) {
-          logger.error("Failed to inject comments:", err);
-        }
-      }
 
       // Pause between games
       const pauseMs = this.streamManager.getPauseBetweenGames();

@@ -96,7 +96,16 @@ async function main() {
         }
       },
       onCommentQueue: (commentId) => {
-        eventHub!.updateCommentStatus(commentId, "queued");
+        const comment = eventHub!.updateCommentStatus(commentId, "queued");
+        if (comment) {
+          const sessionMgr = orchestratorRef.current?.getSessionManager();
+          if (sessionMgr) {
+            sessionMgr
+              .injectMessage(`[視聴者コメント] ${comment.authorName}: "${comment.text}"`)
+              .then(() => eventHub!.updateCommentStatus(commentId, "answered"))
+              .catch((err) => logger.error("Failed to inject comment:", err));
+          }
+        }
       },
       onCommentDismiss: (commentId) => {
         eventHub!.updateCommentStatus(commentId, "dismissed");
