@@ -4,6 +4,9 @@ import type { EventHub } from "./stream/event-hub.js";
 
 const FLUSH_INTERVAL_MS = 200;
 
+/** Tags used for internal control flow — must not be shown to viewers / TTS */
+const CONTROL_TAG_RE = /\[(?:CONTINUE|END_STREAM)\]/g;
+
 export class EventMonitor {
   private client: OpencodeClient;
   private abortController: AbortController | null = null;
@@ -136,11 +139,12 @@ export class EventMonitor {
     }
 
     if (this.textBuffer && this.eventHub) {
-      const speech = this.textAccum.length > 500
-        ? "…" + this.textAccum.slice(-500)
-        : this.textAccum;
+      const cleanAccum = this.textAccum.replace(CONTROL_TAG_RE, "");
+      const speech = cleanAccum.length > 500
+        ? "…" + cleanAccum.slice(-500)
+        : cleanAccum;
       this.eventHub.setAgentSpeech(speech);
-      this.eventHub.pushActivity("text", this.textBuffer);
+      this.eventHub.pushActivity("text", this.textBuffer.replace(CONTROL_TAG_RE, ""));
       this.textBuffer = "";
     }
 
