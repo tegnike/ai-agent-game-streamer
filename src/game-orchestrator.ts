@@ -6,6 +6,7 @@ import { BrowserManager } from "./utils/browser-manager.js";
 import { getRandomGame, GAME_REGISTRY } from "./games/game-registry.js";
 import { logger, GameLogger, createGameLogPath } from "./utils/logger.js";
 import { GAME_SERVER_PORT } from "./config.js";
+import { buildEndDecisionPrompt } from "./prompts/play-game.js";
 import type { GameId } from "./types.js";
 import type { EventHub } from "./stream/event-hub.js";
 import type { StreamManager } from "./stream/stream-manager.js";
@@ -15,6 +16,8 @@ const MAX_EMPTY_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
 
 export class GameOrchestrator {
+  private static readonly AI_DECISION_TIMEOUT_MS = 30_000;
+
   private sessionManager: SessionManager;
   private eventMonitor: EventMonitor;
   private processManager: ProcessManager;
@@ -297,6 +300,61 @@ export class GameOrchestrator {
     this.eventHub?.setAgentSpeech(null);
   }
 
+  private async askAiEndDecision(): Promise<boolean> {
+    const sessionId = this.activeSessionId;
+    // セッション有効性チェック（Codex#2）
+    if (!sessionId || !this.sessionManager.getState().sessionId) {
+      logger.info("No valid session for AI end decision, continuing");
+      return false;
+    }
+
+    const prompt = buildEndDecisionPrompt();
+
+    // EventMonitor でAIの応答テキストをキャプチャ
+    const responsePromise = new Promise<string>((resolve) => {
+      // タイムアウト（Codex#2）
+      const timer = setTimeout(() => {
+        logger.info("AI end decision timed out, continuing");
+        this.eventMonitor.stopMonitoring();
+        resolve("");
+      }, GameOrchestrator.AI_DECISION_TIMEOUT_MS);
+
+      this.eventMonitor.startMonitoring(
+        sessionId,
+        () => {
+          clearTimeout(timer);
+          resolve(this.eventMonitor.getAccumulatedText());
+        },
+        () => {
+          clearTimeout(timer);
+          resolve("");  // onError: 続行
+        },
+        () => {
+          clearTimeout(timer);
+          resolve("");  // onAbort: 続行
+        },
+        () => {
+          // onReady: 購読開始完了 → プロンプト送信
+          this.sessionManager.injectMessage(prompt).catch((err) => {
+            logger.error("Failed to send end decision prompt:", err);
+          });
+        },
+      );
+    });
+
+    const responseText = await responsePromise;
+    this.eventMonitor.stopMonitoring();
+
+    const shouldEnd = this.shouldEndStream(responseText);
+    logger.info(`AI end decision: ${shouldEnd ? "END" : "CONTINUE"} (text: ${responseText.substring(0, 100)}...)`);
+    return shouldEnd;
+  }
+
+  private shouldEndStream(text: string): boolean {
+    // 構造化トークンで判定（Codex#3, #7）
+    return text.includes("[END_STREAM]");
+  }
+
   /**
    * Check if the browser is still alive and attempt relaunch if needed.
    */
@@ -328,6 +386,10 @@ export class GameOrchestrator {
     }
 
     logger.info("=== Starting managed stream ===");
+
+    // ストリーム開始時にゲームカウントをリセット（Codex#1: 前回値持ち越し防止）
+    this.sessionManager.resetGamesPlayed();
+
     const config = this.streamManager.getConfig();
     const selectedGames = config.selectedGames;
 
@@ -441,9 +503,30 @@ export class GameOrchestrator {
         break;
       }
 
+      // Check maxGames limit
+      const maxGames = this.streamManager.getMaxGames();
+      const completedCount = this.sessionManager.getState().gamesPlayed.length;
+      if (maxGames && completedCount >= maxGames) {
+        logger.info(`Max games reached (${completedCount}/${maxGames}), stopping stream`);
+        this.streamManager.transition("stopped");
+        break;
+      }
+
       // Multi mode: transition between games
       if (!this.streamManager.isRunning()) break;
       this.streamManager.transition("transitioning");
+
+      // AI autonomous end decision (if enabled)
+      if (this.streamManager.getAiAutoEnd()) {
+        const shouldEnd = await this.askAiEndDecision();
+        if (shouldEnd) {
+          logger.info("AI decided to end the stream");
+          this.streamManager.transition("stopped");
+          break;
+        }
+        // ストリーム停止チェック（判定中にstopされた場合）
+        if (!this.streamManager.isRunning()) break;
+      }
 
       // Pause between games
       const pauseMs = this.streamManager.getPauseBetweenGames();

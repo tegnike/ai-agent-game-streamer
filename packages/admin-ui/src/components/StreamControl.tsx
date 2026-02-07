@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useStreamStore } from "../store/stream-store";
 import { CollapsiblePanel } from "./CollapsiblePanel";
-import type { StreamMode, GameId, AdminCommand } from "../types";
+import type { StreamMode, GameId, AdminCommand, StreamConfig } from "../types";
 
 interface Props {
   sendCommand: (cmd: AdminCommand) => void;
@@ -16,9 +16,15 @@ export function StreamControl({ sendCommand }: Props) {
   const availableGames = useStreamStore((s) => s.availableGames);
   const selectedGames = useStreamStore((s) => s.selectedGames);
   const [selectedMode, setSelectedMode] = useState<StreamMode>("multi");
+  const [maxGames, setMaxGames] = useState<number>(0);
+  const [aiAutoEnd, setAiAutoEnd] = useState(false);
 
   const handleStart = () => {
-    const config: { mode: StreamMode; selectedGames?: GameId[] } = { mode: selectedMode };
+    const config: StreamConfig = {
+      mode: selectedMode,
+      maxGames: selectedMode === "multi" && maxGames > 0 ? maxGames : undefined,
+      aiAutoEnd: selectedMode === "multi" ? aiAutoEnd : undefined,
+    };
     if (selectedGames.length > 0) {
       config.selectedGames = selectedGames;
     }
@@ -81,6 +87,32 @@ export function StreamControl({ sendCommand }: Props) {
             ? "選択中のゲームから1つをランダムにプレイして終了します"
             : "選択中のゲームをランダム順でループ再生します"}
         </p>
+      )}
+
+      {isIdle && selectedMode === "multi" && (
+        <div className="control-group">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">最大ゲーム数:</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={maxGames}
+              onChange={(e) => setMaxGames(Math.max(0, Math.floor(Number(e.target.value))))}
+              className="w-20 px-2 py-1 border rounded text-sm"
+              placeholder="0=無制限"
+            />
+            <span className="text-xs text-gray-400">0=無制限</span>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={aiAutoEnd}
+              onChange={(e) => setAiAutoEnd(e.target.checked)}
+            />
+            AIが自動で終了判断
+          </label>
+        </div>
       )}
 
       {isActive && (

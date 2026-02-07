@@ -35,6 +35,7 @@ export class EventMonitor {
     onIdle: () => void,
     onError: (error: unknown) => void,
     onAbort?: () => void,
+    onReady?: () => void,
   ): Promise<void> {
     // 既存の購読があれば停止（多重購読防止）
     if (this.abortController) {
@@ -53,6 +54,7 @@ export class EventMonitor {
       logger.debug(`startMonitoring: subscribing to events for session=${sessionId}...`);
       const result = await this.client.event.subscribe();
       logger.info(`Event subscription established, waiting for events...`);
+      onReady?.();
 
       let eventCount = 0;
       for await (const event of result.stream) {
@@ -251,5 +253,9 @@ export class EventMonitor {
       this.onAbortCallback();
       this.onAbortCallback = null;
     }
+  }
+
+  getAccumulatedText(): string {
+    return this.textAccum;
   }
 }

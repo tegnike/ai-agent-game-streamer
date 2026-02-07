@@ -26,6 +26,8 @@ export interface StreamConfig {
   mode: StreamMode;
   selectedGames?: GameId[];
   pauseBetweenGames?: number;
+  maxGames?: number;          // 0 or undefined = 無制限
+  aiAutoEnd?: boolean;        // AI自律終了判断
   commentsEnabled?: boolean;
   visualEndpoint?: string;
   visualBatchInterval?: number;

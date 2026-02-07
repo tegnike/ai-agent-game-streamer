@@ -117,4 +117,12 @@ export class StreamManager {
   getPauseBetweenGames(): number {
     return this.config.pauseBetweenGames ?? DEFAULT_CONFIG.pauseBetweenGames!;
   }
+
+  getMaxGames(): number | undefined {
+    return this.config.maxGames;
+  }
+
+  getAiAutoEnd(): boolean {
+    return this.config.aiAutoEnd ?? false;
+  }
 }
