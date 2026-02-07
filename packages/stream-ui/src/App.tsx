@@ -116,7 +116,7 @@ function BiimLayout({ pipeline }: { pipeline: TTSPipeline }) {
             </div>
 
             {/* 字幕エリア（余った領域を使う） */}
-            <div className="flex-1 min-h-0 flex items-start justify-center pt-2 px-4">
+            <div className="flex-1 min-h-0 flex items-center justify-center px-4">
               <Subtitle />
             </div>
           </div>
