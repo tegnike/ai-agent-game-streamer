@@ -91,74 +91,79 @@ function BiimLayout({ pipeline }: { pipeline: TTSPipeline }) {
   const { formatted } = useTimer()
 
   return (
-    <div className="h-screen w-screen biim-layout flex flex-col overflow-hidden">
-      {/* メインエリア - CSS Grid で左右の行を揃える */}
+    <div className="h-screen w-screen flex items-center justify-center bg-black">
+      {/* 全体を16:9に固定 */}
       <div
-        className="flex-1 min-h-0 grid p-2 gap-2"
+        className="biim-layout flex flex-col overflow-hidden"
         style={{
-          gridTemplateColumns: '1fr 280px',
-          gridTemplateRows: '1fr auto',
+          width: 'min(100vw, calc(100vh / 9 * 16))',
+          height: 'min(100vh, calc(100vw / 16 * 9))',
         }}
       >
-        {/* 左上: ゲーム画面 */}
-        <div className="biim-border biim-border-inset min-h-0 flex items-center justify-center bg-black">
-          <div className="relative w-full h-full flex items-center justify-center">
-            {/* ゲーム画面プレースホルダー */}
-            <span className="text-xl text-gray-600">GAME SCREEN</span>
-            <ConnectionStatus />
+        {/* メインエリア: 左=ゲーム+字幕、右=情報パネル */}
+        <div className="flex-1 min-h-0 flex p-2 gap-2">
+          {/* 左カラム: ゲーム画面 + 字幕 */}
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            {/* ゲーム画面 16:9 */}
+            <div
+              className="biim-border biim-border-inset bg-black relative"
+              style={{ aspectRatio: '16 / 9', width: '100%' }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl text-gray-600">GAME SCREEN</span>
+              </div>
+              <ConnectionStatus />
+            </div>
+
+            {/* 字幕エリア（余った領域を使う） */}
+            <div className="flex-1 min-h-0 flex items-start justify-center pt-2 px-4">
+              <Subtitle />
+            </div>
           </div>
-        </div>
 
-        {/* 右上: ゲーム情報 + ログ */}
-        <div className="flex flex-col gap-2 min-h-0">
-          {/* ゲーム情報 */}
-          <GameInfoPanel />
+          {/* 右カラム: ゲーム情報 + ログ + キャラクター */}
+          <div className="flex flex-col gap-2 min-h-0" style={{ width: '340px', flexShrink: 0 }}>
+            {/* ゲーム情報 */}
+            <GameInfoPanel />
 
-          {/* イベントログ */}
-          <div className="biim-section biim-border flex-1 flex flex-col min-h-0">
-            <div className="biim-section-title">ログ</div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <EventLog />
+            {/* イベントログ */}
+            <div className="biim-section biim-border flex-1 flex flex-col min-h-0">
+              <div className="biim-section-title">ログ</div>
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <EventLog />
+              </div>
+            </div>
+
+            {/* キャラクター */}
+            <div className="biim-section biim-border">
+              <CharacterDisplay />
             </div>
           </div>
         </div>
 
-        {/* 左下: 字幕エリア */}
-        <div className="flex items-start justify-center pt-4 px-4">
-          <Subtitle />
-        </div>
-
-        {/* 右下: キャラクター */}
-        <div className="biim-section biim-border">
-          <CharacterDisplay />
-        </div>
-      </div>
-
-      {/* 下部: タイマーバー */}
-      <div className="biim-panel biim-border flex items-center gap-4 px-4 py-2">
-        {/* タイマー（startedAtがある場合のみ表示） */}
-        {startedAt && (
-          <div className="biim-timer biim-border-inset">
-            {formatted}
-          </div>
-        )}
-
-        {/* ゲーム名 */}
-        <div className="flex-1 text-center" style={{ color: '#000' }}>
-          {currentGame ? (
-            <span className="font-bold">{currentGame.nameJa || currentGame.name}</span>
-          ) : (
-            <span className="text-gray-500">ゲーム未選択</span>
+        {/* 下部: タイマーバー */}
+        <div className="biim-panel biim-border flex items-center gap-4 px-4 py-2">
+          {startedAt && (
+            <div className="biim-timer biim-border-inset">
+              {formatted}
+            </div>
           )}
-        </div>
 
-        {/* ステータス表示 */}
-        <div className="flex gap-4 text-xs" style={{ color: '#000' }}>
-          <div className="flex items-center">
-            <span
-              className={`biim-status-dot ${isPlaying ? 'biim-status-ok biim-blink' : 'biim-status-warn'}`}
-            />
-            <span>{isPlaying ? 'LIVE' : 'STANDBY'}</span>
+          <div className="flex-1 text-center" style={{ color: '#000' }}>
+            {currentGame ? (
+              <span className="font-bold">{currentGame.nameJa || currentGame.name}</span>
+            ) : (
+              <span className="text-gray-500">ゲーム未選択</span>
+            )}
+          </div>
+
+          <div className="flex gap-4 text-xs" style={{ color: '#000' }}>
+            <div className="flex items-center">
+              <span
+                className={`biim-status-dot ${isPlaying ? 'biim-status-ok biim-blink' : 'biim-status-warn'}`}
+              />
+              <span>{isPlaying ? 'LIVE' : 'STANDBY'}</span>
+            </div>
           </div>
         </div>
       </div>
