@@ -19,6 +19,7 @@ export class EventMonitor {
   private reasoningBuffer = "";
   private textAccum = "";
   private reasoningAccum = "";
+  private cleanTextLength = 0; // length of last emitted clean text (for delta derivation)
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(client: OpencodeClient) {
@@ -52,6 +53,7 @@ export class EventMonitor {
     this.reasoningBuffer = "";
     this.textAccum = "";
     this.reasoningAccum = "";
+    this.cleanTextLength = 0;
 
     try {
       logger.debug(`startMonitoring: subscribing to events for session=${sessionId}...`);
@@ -139,12 +141,19 @@ export class EventMonitor {
     }
 
     if (this.textBuffer && this.eventHub) {
+      // Derive clean delta from the full accumulated text to avoid
+      // partial-tag leaks when [CONTINUE]/[END_STREAM] is split across flushes.
       const cleanAccum = this.textAccum.replace(CONTROL_TAG_RE, "");
+      const cleanDelta = cleanAccum.slice(this.cleanTextLength);
+      this.cleanTextLength = cleanAccum.length;
+
       const speech = cleanAccum.length > 500
         ? "…" + cleanAccum.slice(-500)
         : cleanAccum;
       this.eventHub.setAgentSpeech(speech);
-      this.eventHub.pushActivity("text", this.textBuffer.replace(CONTROL_TAG_RE, ""));
+      if (cleanDelta) {
+        this.eventHub.pushActivity("text", cleanDelta);
+      }
       this.textBuffer = "";
     }
 
@@ -210,6 +219,7 @@ export class EventMonitor {
           // Keep reasoningAccum across tool calls so thought preserves
           // the agent's reasoning chain and stays distinct from speech.
           this.textAccum = "";
+          this.cleanTextLength = 0;
 
           const cmd = state.input?.command ?? state.input?.path ?? "";
           this.output(`\n  [${tool}] ${cmd}\n`);
