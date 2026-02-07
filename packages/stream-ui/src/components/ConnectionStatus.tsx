@@ -19,7 +19,6 @@ export function ConnectionStatus() {
   const connectionStatus = useStreamStore((s) => s.connectionStatus)
   const voicevoxStatus = useStreamStore((s) => s.voicevoxStatus)
   const setVoicevoxStatus = useStreamStore((s) => s.setVoicevoxStatus)
-  const currentGame = useStreamStore((s) => s.state.currentGameConfig)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -38,17 +37,10 @@ export function ConnectionStatus() {
   }, [setVoicevoxStatus])
 
   return (
-    <div
-      className="absolute bottom-0 left-0 right-0 flex items-center gap-4 px-3 py-1 text-xs"
-      style={{
-        background: 'rgba(0, 0, 0, 0.8)',
-        fontFamily: "'DotGothic16', 'MS Gothic', monospace",
-        color: '#00ff00',
-      }}
-    >
+    <>
       <div className="flex items-center gap-1">
         <span className={`biim-status-dot ${STATUS_CLASS[connectionStatus]}`} />
-        <span>WS:{connectionStatus}</span>
+        <span>WS:{connectionStatus === 'connected' ? 'OK' : connectionStatus}</span>
       </div>
       <div className="flex items-center gap-1">
         <span className={`biim-status-dot ${VOICEVOX_CLASS[voicevoxStatus]}`} />
@@ -56,11 +48,6 @@ export function ConnectionStatus() {
           TTS:{voicevoxStatus === 'unavailable' ? 'OFF' : voicevoxStatus === 'connected' ? 'OK' : '...'}
         </span>
       </div>
-      {currentGame && (
-        <div className="flex items-center gap-1 ml-auto" style={{ color: '#ffff00' }}>
-          <span>GAME:{currentGame.nameJa || currentGame.name}</span>
-        </div>
-      )}
-    </div>
+    </>
   )
 }

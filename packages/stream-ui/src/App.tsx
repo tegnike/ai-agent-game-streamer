@@ -86,7 +86,6 @@ function BiimLayout({ pipeline }: { pipeline: TTSPipeline }) {
 
   const phase = useStreamStore((s) => s.state.phase)
   const startedAt = useStreamStore((s) => s.state.startedAt)
-  const currentGame = useStreamStore((s) => s.state.currentGameConfig)
   const isPlaying = phase === 'playing'
   const { formatted } = useTimer()
 
@@ -112,7 +111,6 @@ function BiimLayout({ pipeline }: { pipeline: TTSPipeline }) {
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xl text-gray-600">GAME SCREEN</span>
               </div>
-              <ConnectionStatus />
             </div>
 
             {/* 字幕エリア（余った領域を使う） */}
@@ -149,15 +147,10 @@ function BiimLayout({ pipeline }: { pipeline: TTSPipeline }) {
             </div>
           )}
 
-          <div className="flex-1 text-center" style={{ color: '#000' }}>
-            {currentGame ? (
-              <span className="font-bold">{currentGame.nameJa || currentGame.name}</span>
-            ) : (
-              <span className="text-gray-500">ゲーム未選択</span>
-            )}
-          </div>
+          <div className="flex-1" />
 
-          <div className="flex gap-4 text-xs" style={{ color: '#000' }}>
+          <div className="flex items-center gap-4 text-xs" style={{ color: '#000' }}>
+            <ConnectionStatus />
             <div className="flex items-center">
               <span
                 className={`biim-status-dot ${isPlaying ? 'biim-status-ok biim-blink' : 'biim-status-warn'}`}
