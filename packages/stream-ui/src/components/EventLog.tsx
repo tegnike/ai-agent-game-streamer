@@ -1,19 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useStreamStore } from '../store/stream-store'
 
-const TYPE_COLORS: Record<string, string> = {
-  text: '#00ff00',
-  reasoning: '#888888',
-  tool: '#00ffff',
-  game: '#ffff00',
-  error: '#ff4444',
-  state: '#ff8800',
-  system: '#ff00ff',
-}
-
 export function EventLog() {
   const eventLog = useStreamStore((s) => s.eventLog)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // reasoning(思考)のみ抽出
+  const thoughts = eventLog.filter((e) => e.type === 'reasoning')
 
   // 自動スクロール
   useEffect(() => {
@@ -21,30 +14,24 @@ export function EventLog() {
     if (el) {
       el.scrollTop = el.scrollHeight
     }
-  }, [eventLog])
+  }, [thoughts])
 
   return (
     <div
       ref={scrollRef}
       className="biim-log h-full"
     >
-      {eventLog.length === 0 ? (
+      {thoughts.length === 0 ? (
         <div className="text-center py-2" style={{ color: '#666' }}>
-          &gt; Waiting for events...
+          &gt; Waiting for thoughts...
         </div>
       ) : (
-        eventLog.slice(-50).map((entry, i) => (
+        thoughts.slice(-50).map((entry, i) => (
           <div
             key={i}
             className="biim-log-entry"
-            style={{ color: TYPE_COLORS[entry.type] || '#00ff00' }}
+            style={{ color: '#cccccc', whiteSpace: 'normal', wordBreak: 'break-word' }}
           >
-            <span style={{ color: '#666' }}>{entry.time}</span>
-            {' '}
-            <span style={{ color: TYPE_COLORS[entry.type] || '#00ff00' }}>
-              [{entry.type}]
-            </span>
-            {' '}
             {entry.content}
           </div>
         ))
