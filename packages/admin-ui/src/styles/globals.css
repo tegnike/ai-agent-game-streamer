@@ -718,19 +718,6 @@ select {
   font-weight: 500;
 }
 
-.llm-config-panel .pending-warning {
-  background: rgba(255, 145, 0, 0.15);
-  border: 1px solid var(--orange);
-  border-radius: 4px;
-  padding: 8px;
-  margin-bottom: 10px;
-  font-size: 11px;
-  color: var(--orange);
-}
-
-.llm-config-panel .pending-warning small {
-  color: var(--text-muted);
-}
 
 .llm-config-panel .button-row {
   display: flex;

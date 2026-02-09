@@ -78,9 +78,9 @@ export function LLMConfigPanel() {
         body: JSON.stringify(config),
       });
       const data = await resp.json();
-      if (resp.ok) {
+      if (data.success) {
         setLLMState(data);
-        setApiKey(""); // Clear API key after applying
+        setApiKey("");
       } else {
         setError(data.error ?? "Failed to apply config");
       }
@@ -91,24 +91,7 @@ export function LLMConfigPanel() {
     }
   }, [selectedProvider, selectedModel, apiKey, setLLMState]);
 
-  const handleRestart = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await fetch("/api/llm/restart", { method: "POST" });
-      const data = await resp.json();
-      if (!data.success) {
-        setError(data.error ?? "Restart failed");
-      }
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const isStreamRunning = phase !== "idle" && phase !== "stopped";
-  const canRestart = llmState.requiresRestart && !isStreamRunning;
   const hasChanges =
     llmState.current &&
     (selectedProvider !== llmState.current.provider ||
@@ -124,15 +107,6 @@ export function LLMConfigPanel() {
           <span className="current-model">
             {llmState.current.provider}/{llmState.current.model}
           </span>
-        </div>
-      )}
-
-      {/* Pending Config Warning */}
-      {llmState.requiresRestart && llmState.pending && (
-        <div className="pending-warning">
-          Pending: {llmState.pending.provider}/{llmState.pending.model}
-          <br />
-          <small>Restart required to apply</small>
         </div>
       )}
 
@@ -188,29 +162,22 @@ export function LLMConfigPanel() {
         />
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Button */}
       <div className="button-row">
         <button
           className="btn btn-send"
           onClick={handleApply}
-          disabled={loading || !hasChanges}
-        >
-          {loading ? "Applying..." : "Apply"}
-        </button>
-        <button
-          className="btn btn-restart"
-          onClick={handleRestart}
-          disabled={loading || !canRestart}
+          disabled={loading || !hasChanges || isStreamRunning}
           title={isStreamRunning ? "Stop stream first" : ""}
         >
-          {loading ? "Restarting..." : "Restart Server"}
+          {loading ? "Applying..." : "Apply"}
         </button>
       </div>
 
       {/* Stream Running Warning */}
-      {isStreamRunning && llmState.requiresRestart && (
+      {isStreamRunning && hasChanges && (
         <div className="hint-text">
-          Stop the stream to restart the LLM server.
+          Stop the stream to change the LLM settings.
         </div>
       )}
 

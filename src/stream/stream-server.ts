@@ -91,8 +91,6 @@ export class StreamServer {
       onAdminMessage: this.onAdminMessage,
       onCommentQueue: this.onCommentQueue,
       onCommentDismiss: this.onCommentDismiss,
-      onLLMConfig: (config: LLMConfig) => this.handleLLMConfig(config),
-      onLLMRestart: () => this.handleLLMRestart(),
     });
   }
 
@@ -418,14 +416,11 @@ export class StreamServer {
               return;
             }
             const config: LLMConfig = { provider: provider as LLMConfig["provider"], model, apiKey };
-            this.handleLLMConfig(config);
-            this.sendJson(res, 200, this.llmConfigManager.getState());
-            return;
-          }
-
-          case "/api/llm/restart": {
-            const result = await this.handleLLMRestart();
-            this.sendJson(res, result.success ? 200 : 400, result);
+            const result = await this.handleLLMConfigAndRestart(config);
+            this.sendJson(res, result.success ? 200 : 400, {
+              ...result,
+              ...this.llmConfigManager.getState(),
+            });
             return;
           }
 
@@ -548,26 +543,21 @@ export class StreamServer {
     return this.llmConfigManager;
   }
 
-  private handleLLMConfig(config: LLMConfig): void {
-    this.llmConfigManager.setConfig(config);
-    this.broadcastLLMState();
-  }
-
-  private async handleLLMRestart(): Promise<{ success: boolean; error?: string }> {
+  private async handleLLMConfigAndRestart(config: LLMConfig): Promise<{ success: boolean; error?: string }> {
     // Check if stream is running
     const phase = this.streamManager.getCurrentPhase();
     if (phase !== "idle" && phase !== "stopped") {
-      return { success: false, error: "Cannot restart while stream is running. Stop the stream first." };
+      return { success: false, error: "Cannot apply while stream is running. Stop the stream first." };
     }
 
     if (!this.onLLMRestart) {
       return { success: false, error: "LLM restart not configured" };
     }
 
+    // Set pending config, then restart to apply it
+    this.llmConfigManager.setConfig(config);
     const result = await this.onLLMRestart();
-    if (result.success) {
-      this.broadcastLLMState();
-    }
+    this.broadcastLLMState();
     return result;
   }
 

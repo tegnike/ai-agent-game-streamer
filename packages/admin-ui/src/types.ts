@@ -44,6 +44,4 @@ export type AdminCommand =
   | { type: "game:skip" }
   | { type: "admin:message"; text: string }
   | { type: "comment:queue"; commentId: string }
-  | { type: "comment:dismiss"; commentId: string }
-  | { type: "llm:config"; config: LLMConfig }
-  | { type: "llm:restart" };
+  | { type: "comment:dismiss"; commentId: string };

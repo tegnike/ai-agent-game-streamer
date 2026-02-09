@@ -64,7 +64,7 @@ export function useWebSocket() {
           case "llm:state": {
             const llmState = msg.data as LLMState;
             setLLMState(llmState);
-            addEventLog("llm", `LLM state updated (pending: ${llmState.requiresRestart})`);
+            addEventLog("llm", `LLM: ${llmState.current?.provider}/${llmState.current?.model}`);
             break;
           }
           case "error":
