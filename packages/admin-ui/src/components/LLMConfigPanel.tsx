@@ -1,7 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useStreamStore } from "../store/stream-store";
 import { CollapsiblePanel } from "./CollapsiblePanel";
-import type { ProviderId, LLMConfig } from "../types";
+import type { ProviderId, ReasoningEffort, LLMConfig } from "../types";
+
+const EFFORT_LABELS: Record<ReasoningEffort, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+};
 
 export function LLMConfigPanel() {
   const providers = useStreamStore((s) => s.providers);
@@ -12,6 +18,7 @@ export function LLMConfigPanel() {
 
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>("zai");
   const [selectedModel, setSelectedModel] = useState("");
+  const [selectedEffort, setSelectedEffort] = useState<ReasoningEffort | "">("");
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +49,7 @@ export function LLMConfigPanel() {
         if (data.current) {
           setSelectedProvider(data.current.provider);
           setSelectedModel(data.current.model);
+          setSelectedEffort(data.current.reasoningEffort ?? "");
         }
       })
       .catch(console.error);
@@ -61,6 +69,28 @@ export function LLMConfigPanel() {
 
   const currentProvider = providers.find((p) => p.id === selectedProvider);
 
+  // Determine reasoning effort options based on selected model
+  const currentModel = currentProvider?.models.find((m) => m.id === selectedModel);
+  const supportedEfforts = currentModel?.reasoningEfforts;
+
+  // Reset effort when switching to a model that doesn't support it
+  useEffect(() => {
+    if (!supportedEfforts?.length) {
+      setSelectedEffort("");
+    } else if (selectedEffort && !supportedEfforts.includes(selectedEffort)) {
+      // Current effort is not supported by the new model, reset
+      setSelectedEffort("");
+    }
+  }, [selectedModel, supportedEfforts, selectedEffort]);
+
+  const effortOptions = useMemo(() => {
+    if (!supportedEfforts?.length) return [];
+    return [
+      { value: "" as const, label: "Default" },
+      ...supportedEfforts.map((e) => ({ value: e, label: EFFORT_LABELS[e] })),
+    ];
+  }, [supportedEfforts]);
+
   const handleApply = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -71,6 +101,9 @@ export function LLMConfigPanel() {
       };
       if (apiKey.trim()) {
         config.apiKey = apiKey.trim();
+      }
+      if (selectedEffort) {
+        config.reasoningEffort = selectedEffort;
       }
       const resp = await fetch("/api/llm/config", {
         method: "POST",
@@ -89,13 +122,14 @@ export function LLMConfigPanel() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProvider, selectedModel, apiKey, setLLMState]);
+  }, [selectedProvider, selectedModel, selectedEffort, apiKey, setLLMState]);
 
   const isStreamRunning = phase !== "idle" && phase !== "stopped";
   const hasChanges =
     llmState.current &&
     (selectedProvider !== llmState.current.provider ||
       selectedModel !== llmState.current.model ||
+      (selectedEffort || undefined) !== llmState.current.reasoningEffort ||
       apiKey.trim() !== "");
 
   return (
@@ -106,6 +140,7 @@ export function LLMConfigPanel() {
           <span className="label">Current:</span>
           <span className="current-model">
             {llmState.current.provider}/{llmState.current.model}
+            {llmState.current.reasoningEffort && ` (reasoning: ${llmState.current.reasoningEffort})`}
           </span>
         </div>
       )}
@@ -161,6 +196,25 @@ export function LLMConfigPanel() {
           disabled={loading}
         />
       </div>
+
+      {/* Reasoning Effort — only shown when the selected model supports it */}
+      {effortOptions.length > 0 && (
+        <div className="form-group">
+          <label htmlFor="reasoning-effort-select">Reasoning Effort</label>
+          <select
+            id="reasoning-effort-select"
+            value={selectedEffort}
+            onChange={(e) => setSelectedEffort(e.target.value as ReasoningEffort | "")}
+            disabled={loading}
+          >
+            {effortOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Action Button */}
       <div className="button-row">

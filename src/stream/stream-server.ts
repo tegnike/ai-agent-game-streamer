@@ -430,12 +430,25 @@ export class StreamServer {
           }
 
           case "/api/llm/config": {
-            const { provider, model, apiKey } = body as { provider?: string; model?: string; apiKey?: string };
+            const { provider, model, apiKey, reasoningEffort } = body as {
+              provider?: string;
+              model?: string;
+              apiKey?: string;
+              reasoningEffort?: string;
+            };
             if (!provider || !model) {
               this.sendJson(res, 400, { error: "provider and model are required" });
               return;
             }
-            const config: LLMConfig = { provider: provider as LLMConfig["provider"], model, apiKey };
+            const validEfforts = ["low", "medium", "high"];
+            const config: LLMConfig = {
+              provider: provider as LLMConfig["provider"],
+              model,
+              apiKey,
+              reasoningEffort: reasoningEffort && validEfforts.includes(reasoningEffort)
+                ? (reasoningEffort as LLMConfig["reasoningEffort"])
+                : undefined,
+            };
             const result = await this.handleLLMConfigAndRestart(config);
             this.sendJson(res, result.success ? 200 : 400, {
               ...result,

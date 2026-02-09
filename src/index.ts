@@ -5,6 +5,7 @@ import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
 import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG } from "./config.js";
 import type { GameId } from "./types.js";
+import type { ReasoningEffort } from "./stream/types.js";
 import { EventHub } from "./stream/event-hub.js";
 import { StreamManager } from "./stream/stream-manager.js";
 import { StreamServer } from "./stream/stream-server.js";
@@ -31,15 +32,22 @@ async function main() {
   const gameArg = parseArg(args, "--game=");
   const providerName = parseArg(args, "--provider=");
   const modelName = parseArg(args, "--model=");
+  const reasoningEffort = parseArg(args, "--reasoning-effort=");
   const adminPortArg = parseArg(args, "--admin-port=");
   const visualEndpoint = parseArg(args, "--visual-endpoint=");
   const visualInterval = parseArg(args, "--visual-interval=");
 
   // Initialize LLM config manager
   const llmConfigManager = new LLMConfigManager();
-  llmConfigManager.initialize(providerName, modelName);
+  llmConfigManager.initialize(providerName, modelName, reasoningEffort);
 
-  const modelConfig = buildModelConfig(providerName, modelName);
+  const validEfforts = ["low", "medium", "high"] as const;
+  const effort: ReasoningEffort | undefined =
+    reasoningEffort && validEfforts.includes(reasoningEffort as ReasoningEffort)
+      ? (reasoningEffort as ReasoningEffort)
+      : undefined;
+
+  const modelConfig = buildModelConfig(providerName, modelName, effort);
   if (modelConfig) {
     logger.info(`Using model: ${modelConfig.model}`);
   }

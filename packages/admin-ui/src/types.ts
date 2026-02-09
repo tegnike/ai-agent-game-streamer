@@ -7,10 +7,14 @@ export * from "@agent-game/shared";
 
 export type ProviderId = "openai" | "anthropic" | "google" | "zai";
 
+export type ReasoningEffort = "low" | "medium" | "high";
+
 export interface ModelInfo {
   id: string;
   name: string;
   description?: string;
+  /** Supported reasoning effort levels. undefined = reasoning not supported */
+  reasoningEfforts?: ReasoningEffort[];
 }
 
 export interface ProviderInfo {
@@ -25,6 +29,7 @@ export interface LLMConfig {
   provider: ProviderId;
   model: string;
   apiKey?: string;
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface LLMState {

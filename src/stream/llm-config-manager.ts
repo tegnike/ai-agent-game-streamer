@@ -1,5 +1,5 @@
 import type { Config } from "@opencode-ai/sdk";
-import type { LLMConfig, LLMState, ProviderInfo } from "./types.js";
+import type { LLMConfig, LLMState, ProviderInfo, ReasoningEffort } from "./types.js";
 import {
   getProviderInfoList,
   buildModelConfigFromLLM,
@@ -18,7 +18,8 @@ export class LLMConfigManager {
   /**
    * Initialize with configuration from CLI args or default
    */
-  initialize(providerName?: string, modelName?: string): void {
+  initialize(providerName?: string, modelName?: string, reasoningEffort?: string): void {
+    const effort = this.parseEffort(reasoningEffort);
     if (providerName || modelName) {
       const provider = (providerName || DEFAULT_PROVIDER) as LLMConfig["provider"];
       const providerConfig = PROVIDER_CONFIGS[provider];
@@ -26,15 +27,22 @@ export class LLMConfigManager {
         ? modelName.split("/")[1]
         : modelName || providerConfig.defaultModel;
 
-      this.currentConfig = { provider, model };
+      this.currentConfig = { provider, model, reasoningEffort: effort };
     } else {
       // Use default provider and model
       const providerConfig = PROVIDER_CONFIGS[DEFAULT_PROVIDER];
       this.currentConfig = {
         provider: DEFAULT_PROVIDER,
         model: providerConfig.defaultModel,
+        reasoningEffort: effort,
       };
     }
+  }
+
+  private parseEffort(value?: string): ReasoningEffort | undefined {
+    if (!value) return undefined;
+    if (value === "low" || value === "medium" || value === "high") return value;
+    return undefined;
   }
 
   /**
@@ -63,7 +71,8 @@ export class LLMConfigManager {
     if (!this.currentConfig) return true;
     return (
       this.pendingConfig.provider !== this.currentConfig.provider ||
-      this.pendingConfig.model !== this.currentConfig.model
+      this.pendingConfig.model !== this.currentConfig.model ||
+      this.pendingConfig.reasoningEffort !== this.currentConfig.reasoningEffort
     );
   }
 

@@ -6,6 +6,7 @@ import type {
   ModelInfo,
   ProviderInfo,
   LLMConfig,
+  ReasoningEffort,
 } from "./stream/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,13 +83,22 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   openai: {
     name: "OpenAI",
     models: [
-      { id: "gpt-5.2", name: "GPT-5.2", description: "最新フラッグシップ（思考モデル）" },
-      { id: "gpt-5.2-pro", name: "GPT-5.2 Pro", description: "最高性能・高度な推論" },
-      { id: "gpt-5-mini", name: "GPT-5 Mini", description: "高速・コスト効率" },
-      { id: "o3", name: "o3", description: "推論モデル" },
-      { id: "o4-mini", name: "o4-mini", description: "効率的な推論モデル" },
-      { id: "gpt-4.1", name: "GPT-4.1", description: "旧世代フラッグシップ" },
-      { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", description: "旧世代バランスモデル" },
+      // GPT-5.2 系 — 最新フラッグシップ（思考モデル、xhigh対応だがlow/medium/highで統一）
+      { id: "gpt-5.2", name: "GPT-5.2", description: "最新フラッグシップ（思考モデル）", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "gpt-5.2-pro", name: "GPT-5.2 Pro", description: "最高性能・拡張推論", reasoningEfforts: ["low", "medium", "high"] },
+      // GPT-5.1 — 前世代フラッグシップ
+      { id: "gpt-5.1", name: "GPT-5.1", description: "前世代フラッグシップ（思考モデル）", reasoningEfforts: ["low", "medium", "high"] },
+      // GPT-5 系 — mini / nano あり
+      { id: "gpt-5-mini", name: "GPT-5 Mini", description: "高速・コスト効率（思考モデル）", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "gpt-5-nano", name: "GPT-5 Nano", description: "最軽量（思考モデル）", reasoningEfforts: ["low", "medium", "high"] },
+      // o系 — 推論特化モデル
+      { id: "o3", name: "o3", description: "推論モデル", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "o3-mini", name: "o3-mini", description: "軽量推論モデル", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "o4-mini", name: "o4-mini", description: "効率的な推論モデル", reasoningEfforts: ["low", "medium", "high"] },
+      // GPT-4.1 系 — 非推論モデル（reasoning_effort 非対応）
+      { id: "gpt-4.1", name: "GPT-4.1", description: "非推論・コーディング向け" },
+      { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", description: "非推論・バランス" },
+      { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", description: "非推論・最軽量" },
     ],
     defaultModel: "gpt-5.2",
     smallModel: "gpt-5-mini",
@@ -97,11 +107,13 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   anthropic: {
     name: "Anthropic",
     models: [
-      { id: "claude-opus-4-6-20260205", name: "Claude Opus 4.6", description: "最高性能・最新" },
-      { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", description: "バランス型" },
-      { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", description: "高速・効率的" },
-      { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "旧世代最高性能" },
-      { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "旧世代バランス型" },
+      // Opus 4.6: adaptive thinking + effort パラメータ対応
+      { id: "claude-opus-4-6-20260205", name: "Claude Opus 4.6", description: "最高性能・最新", reasoningEfforts: ["low", "medium", "high"] },
+      // Sonnet/Haiku/Opus 4: extended thinking (budget_tokens) 対応
+      { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", description: "バランス型", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", description: "高速・効率的", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "旧世代最高性能", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "旧世代バランス型", reasoningEfforts: ["low", "medium", "high"] },
     ],
     defaultModel: "claude-sonnet-4-5-20250929",
     smallModel: "claude-haiku-4-5-20251001",
@@ -110,11 +122,15 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   google: {
     name: "Google",
     models: [
-      { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", description: "最新フラッグシップ（プレビュー）" },
-      { id: "gemini-3-flash-preview", name: "Gemini 3 Flash", description: "最新高速モデル（プレビュー）" },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "安定版・高度な機能" },
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", description: "安定版・高速応答" },
-      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", description: "安定版・軽量" },
+      // Gemini 3 Pro: LOW / HIGH のみ（MEDIUM非対応）
+      { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", description: "最新フラッグシップ（プレビュー）", reasoningEfforts: ["low", "high"] },
+      // Gemini 3 Flash: 全レベル対応
+      { id: "gemini-3-flash-preview", name: "Gemini 3 Flash", description: "最新高速モデル（プレビュー）", reasoningEfforts: ["low", "medium", "high"] },
+      // Gemini 2.5: thinkingBudget (数値) で制御
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", description: "安定版・高度な機能", reasoningEfforts: ["low", "medium", "high"] },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", description: "安定版・高速応答", reasoningEfforts: ["low", "medium", "high"] },
+      // Flash Lite: thinking はオプトイン（デフォルトOFF）
+      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", description: "安定版・軽量", reasoningEfforts: ["low", "medium", "high"] },
     ],
     defaultModel: "gemini-3-pro-preview",
     smallModel: "gemini-3-flash-preview",
@@ -123,6 +139,7 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   zai: {
     name: "Zai (智谱AI)",
     models: [
+      // Zai: reasoning effort 非対応
       { id: "glm-4.7", name: "GLM-4.7", description: "フラッグシップ" },
       { id: "glm-4.7-flash", name: "GLM-4.7 Flash", description: "高速版" },
     ],
@@ -152,6 +169,90 @@ export function getProviderInfoList(): ProviderInfo[] {
   });
 }
 
+// --- Reasoning Effort → Provider Options Mapping ---
+
+const ANTHROPIC_BUDGET: Record<ReasoningEffort, number> = {
+  low: 5_000,
+  medium: 16_000,
+  high: 50_000,
+};
+
+const GEMINI25_BUDGET: Record<ReasoningEffort, number> = {
+  low: 4_096,
+  medium: 8_192,
+  high: 24_576,
+};
+
+// Flash Lite は最低512トークンが必要
+const GEMINI25_FLASH_LITE_BUDGET: Record<ReasoningEffort, number> = {
+  low: 2_048,
+  medium: 8_192,
+  high: 24_576,
+};
+
+/**
+ * Check if a model supports reasoning effort by looking up PROVIDER_CONFIGS.
+ */
+function modelSupportsReasoning(provider: string, model: string): boolean {
+  const providerConfig = PROVIDER_CONFIGS[provider as ProviderId];
+  if (!providerConfig) return false;
+  const modelInfo = providerConfig.models.find((m) => m.id === model);
+  return !!modelInfo?.reasoningEfforts?.length;
+}
+
+/**
+ * Map unified reasoning effort to provider-specific model options.
+ * Returns undefined for models/providers that don't support reasoning.
+ */
+function buildReasoningOptions(
+  provider: string,
+  model: string,
+  effort: ReasoningEffort,
+): Record<string, unknown> | undefined {
+  // Gate by model-level support
+  if (!modelSupportsReasoning(provider, model)) return undefined;
+
+  switch (provider) {
+    case "openai":
+      // GPT-5系, o3, o4-mini → reasoning_effort
+      // GPT-4.1系は modelSupportsReasoning で弾かれる
+      return { reasoning_effort: effort };
+
+    case "anthropic":
+      // Opus 4.6: adaptive thinking + effort パラメータ（推奨）
+      if (model.startsWith("claude-opus-4-6")) {
+        return {
+          thinking: { type: "adaptive" },
+          effort,
+        };
+      }
+      // その他の Claude 4 モデル: extended thinking (budget_tokens)
+      return {
+        thinking: { type: "enabled", budgetTokens: ANTHROPIC_BUDGET[effort] },
+      };
+
+    case "google":
+      // Gemini 3 Pro: LOW / HIGH のみ（medium → high にフォールバック）
+      if (model === "gemini-3-pro-preview") {
+        const level = effort === "medium" ? "HIGH" : effort.toUpperCase();
+        return { thinkingConfig: { thinkingLevel: level } };
+      }
+      // Gemini 3 Flash: 全レベル対応
+      if (model === "gemini-3-flash-preview") {
+        return { thinkingConfig: { thinkingLevel: effort.toUpperCase() } };
+      }
+      // Gemini 2.5 Flash Lite: 最低512トークン
+      if (model === "gemini-2.5-flash-lite") {
+        return { thinkingConfig: { thinkingBudget: GEMINI25_FLASH_LITE_BUDGET[effort] } };
+      }
+      // Gemini 2.5 Pro / Flash: thinkingBudget (数値)
+      return { thinkingConfig: { thinkingBudget: GEMINI25_BUDGET[effort] } };
+
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Build OpenCode SDK Config from LLMConfig
  */
@@ -174,6 +275,19 @@ export function buildModelConfigFromLLM(llmConfig: LLMConfig): Config {
   if (llmConfig.apiKey) {
     process.env[providerConfig.envKey] = llmConfig.apiKey;
   }
+  // Set reasoning effort as model-level options
+  if (llmConfig.reasoningEffort) {
+    const reasoningOpts = buildReasoningOptions(
+      llmConfig.provider,
+      llmConfig.model,
+      llmConfig.reasoningEffort,
+    );
+    if (reasoningOpts) {
+      config.models = {
+        [llmConfig.model]: { options: reasoningOpts },
+      };
+    }
+  }
 
   return {
     model: `${llmConfig.provider}/${llmConfig.model}`,
@@ -187,6 +301,7 @@ export function buildModelConfigFromLLM(llmConfig: LLMConfig): Config {
 export function buildModelConfig(
   providerName?: string,
   modelName?: string,
+  reasoningEffort?: ReasoningEffort,
 ): Config | undefined {
   if (!providerName && !modelName) {
     providerName = DEFAULT_PROVIDER;
@@ -252,6 +367,15 @@ export function buildModelConfig(
   }
   if (preset.baseURL) {
     providerConfig.options = { baseURL: preset.baseURL };
+  }
+  // Set reasoning effort as model-level options
+  if (reasoningEffort) {
+    const reasoningOpts = buildReasoningOptions(provider, model, reasoningEffort);
+    if (reasoningOpts) {
+      providerConfig.models = {
+        [model]: { options: reasoningOpts },
+      };
+    }
   }
 
   return {

@@ -4,10 +4,14 @@ import type { GameId, GameConfig } from "../types.js";
 
 export type ProviderId = "openai" | "anthropic" | "google" | "zai";
 
+export type ReasoningEffort = "low" | "medium" | "high";
+
 export interface ModelInfo {
   id: string;
   name: string;
   description?: string;
+  /** Supported reasoning effort levels. undefined = reasoning not supported */
+  reasoningEfforts?: ReasoningEffort[];
 }
 
 export interface ProviderInfo {
@@ -24,6 +28,7 @@ export interface LLMConfig {
   provider: ProviderId;
   model: string;
   apiKey?: string; // Optional override (env var used if not provided)
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface LLMState {
