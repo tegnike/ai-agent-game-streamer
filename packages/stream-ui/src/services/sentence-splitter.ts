@@ -25,7 +25,7 @@ export function extractSentences(buffer: string): {
       continue
     }
 
-    // 句読点チェック（数字.数字 パターンを除外）
+    // 句読点チェック（数字.数字 / ファイル拡張子 パターンを除外）
     if (
       /[。！？]/.test(char) ||
       (/[.!?]/.test(char) &&
@@ -34,6 +34,11 @@ export function extractSentences(buffer: string): {
           /\d/.test(buffer[i - 1]) &&
           i + 1 < buffer.length &&
           /\d/.test(buffer[i + 1])
+        ) &&
+        !(
+          char === '.' &&
+          i + 1 < buffer.length &&
+          /[a-zA-Z]/.test(buffer[i + 1])
         ))
     ) {
       // 連続する句読点をスキップ
