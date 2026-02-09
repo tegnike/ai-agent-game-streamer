@@ -131,6 +131,9 @@ export class WSHandler {
     ws.on("close", () => {
       this.clients.delete(client);
       logger.info(`Admin WebSocket disconnected (total: ${this.clients.size})`);
+      if (this.clients.size === 0) {
+        this.hub.setTTSSpeaking(false);
+      }
     });
 
     ws.on("error", (err) => {
@@ -201,6 +204,10 @@ export class WSHandler {
 
       case "llm:restart":
         this.onLLMRestart?.();
+        break;
+
+      case "tts:status":
+        this.hub.setTTSSpeaking(command.speaking);
         break;
 
       default:

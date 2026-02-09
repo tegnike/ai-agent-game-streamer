@@ -66,7 +66,7 @@ export function buildPlayPrompt(game: GameConfig, options?: PlayPromptOptions): 
 2. ポート${game.port}でHTTPサーバーが起動済みです
 3. ${cmd} open ${gameUrl} でゲームページに移動してください
 4. スクリーンショットで初期状態を確認し、ニケとして配信の挨拶をしてください
-5. ゲームをプレイしてください（各手の間に0.5秒の間隔を空けること）
+5. ゲームをプレイしてください。各手の前に必ず ${cmd} eval "var x=new XMLHttpRequest();x.open('GET','http://localhost:3000/api/tts/wait',false);try{x.send()}catch(e){}" を実行して、音声読み上げの完了を待ってから次の操作を行ってください
 6. ゲーム終了後、ニケとして結果を振り返り、視聴者にお礼を言ってください
 7. ゲーム終了後、${cmd} open ${lobbyUrl} でゲーム一覧に戻ってください
 
@@ -102,7 +102,7 @@ export function buildGameTransitionPrompt(game: GameConfig, options?: PlayPrompt
 1. まず games/${game.directory}/README.md を読んでゲームのAPIを確認してください
 2. ${cmd} open ${gameUrl} でゲームページに移動してください
 3. スクリーンショットで初期状態を確認し、視聴者に次のゲームの挨拶をしてください
-4. ゲームをプレイしてください（各手の間に0.5秒の間隔を空けること）
+4. ゲームをプレイしてください。各手の前に必ず ${cmd} eval "var x=new XMLHttpRequest();x.open('GET','http://localhost:3000/api/tts/wait',false);try{x.send()}catch(e){}" を実行して、音声読み上げの完了を待ってから次の操作を行ってください
 5. ゲーム終了後、結果を振り返り、視聴者にお礼を言ってください
 6. ゲーム終了後、${cmd} open ${lobbyUrl} でゲーム一覧に戻ってください
 

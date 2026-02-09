@@ -143,29 +143,29 @@ agent-browser eval "game.winner"
 
 ## 4. 便利なパターン
 
-### 連続操作（重要：間隔を空けて実行）
+### 連続操作（重要：音声同期を行うこと）
 
-> **重要**: ゲーム操作は一度に実行せず、**0.5秒以上の間隔を空けて**実行してください。一気に実行すると画面上で動きが見えず、視聴者にとって面白くありません。
+> **重要**: ゲーム操作の前に必ず音声読み上げの完了を待ってから次の操作を行ってください。同期XHRでTTS完了を待機します。
 
 ```bash
-# ❌ 悪い例：一度に全部実行（動きが見えない）
+# ❌ 悪い例：音声を待たずに全部実行
 agent-browser eval "['right', 'right', 'down', 'left'].forEach(d => game.move(d))"
 
-# ✅ 良い例：シェルループで間隔を空けて実行
+# ✅ 良い例：音声完了を待ってから実行
 for dir in right right down left; do
+  agent-browser eval "var x=new XMLHttpRequest();x.open('GET','http://localhost:3000/api/tts/wait',false);try{x.send()}catch(e){}"
   agent-browser eval "game.move('$dir')"
-  sleep 0.5
 done
 ```
 
 ### ゲームループ（シェルスクリプト）
 
 ```bash
-# 移動配列を定義してループで実行（0.5秒間隔）
+# 移動配列を定義してループで実行（音声同期あり）
 moves="right right down left up"
 for dir in $moves; do
+  agent-browser eval "var x=new XMLHttpRequest();x.open('GET','http://localhost:3000/api/tts/wait',false);try{x.send()}catch(e){}"
   agent-browser eval "game.move('$dir')"
-  sleep 0.5
 done
 ```
 

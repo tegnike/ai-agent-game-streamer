@@ -25,6 +25,8 @@ export class EventHub {
   private comments: ViewerComment[] = [];
   private activityCounter = 0;
   private commentCounter = 0;
+  private ttsSpeaking = false;
+  private ttsWaiters: Array<() => void> = [];
 
   private state: StreamState = {
     phase: "idle",
@@ -128,6 +130,31 @@ export class EventHub {
 
   setBrowserState(browser: BrowserState): void {
     this.state.browser = { ...browser };
+  }
+
+  // --- TTS synchronization ---
+
+  setTTSSpeaking(speaking: boolean): void {
+    this.ttsSpeaking = speaking;
+    if (!speaking) {
+      const waiters = this.ttsWaiters;
+      this.ttsWaiters = [];
+      for (const resolve of waiters) {
+        resolve();
+      }
+    }
+  }
+
+  getTTSSpeaking(): boolean {
+    return this.ttsSpeaking;
+  }
+
+  /** TTS再生完了まで待つPromiseを返す。既にidle状態なら即resolve */
+  waitForTTSIdle(): Promise<void> {
+    if (!this.ttsSpeaking) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.ttsWaiters.push(resolve);
+    });
   }
 
   // --- Agent Activity buffer ---

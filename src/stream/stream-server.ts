@@ -213,6 +213,31 @@ export class StreamServer {
         case "/api/llm/config":
           this.sendJson(res, 200, this.llmConfigManager.getState());
           return;
+
+        case "/api/tts/wait": {
+          const TTS_WAIT_TIMEOUT = 30_000;
+          const TTS_CORS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+          const sendTts = (data: unknown) => {
+            if (res.writableEnded) return;
+            res.writeHead(200, TTS_CORS);
+            res.end(JSON.stringify(data));
+          };
+
+          if (!this.hub.getTTSSpeaking()) {
+            sendTts({ waited: false, speaking: false });
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            sendTts({ waited: true, timedOut: true });
+          }, TTS_WAIT_TIMEOUT);
+
+          this.hub.waitForTTSIdle().then(() => {
+            clearTimeout(timeout);
+            sendTts({ waited: true, timedOut: false });
+          });
+          return;
+        }
       }
     }
 
