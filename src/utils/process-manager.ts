@@ -12,10 +12,12 @@ export class ProcessManager {
    */
   async startPersistentServer(port: number): Promise<number> {
     if (this.isRunning()) {
-      logger.info("HTTP server already running, skipping start");
+      logger.info("[Process] HTTP server already running, skipping start");
       return this.serverProcess!.pid!;
     }
 
+    const start = Date.now();
+    logger.info(`[Process] starting persistent HTTP server on port ${port}...`);
     await this.killPort(port);
 
     const gamesRoot = path.join(PROJECT_ROOT, "games");
@@ -40,7 +42,7 @@ export class ProcessManager {
     });
 
     await this.waitForPort(port, 5000);
-    logger.info(`Persistent HTTP server started on port ${port} from games/ (pid: ${this.serverProcess.pid})`);
+    logger.info(`[Process] persistent HTTP server started on port ${port} from games/ (pid: ${this.serverProcess.pid}, ${Date.now() - start}ms)`);
 
     return this.serverProcess.pid!;
   }

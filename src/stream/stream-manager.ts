@@ -29,8 +29,10 @@ export class StreamManager {
   // --- Configuration ---
 
   configure(config: Partial<StreamConfig>): void {
+    const prev = { ...this.config };
     this.config = { ...this.config, ...config };
     this.hub.setConfig(this.config);
+    logger.info(`[StreamManager] configure: mode=${this.config.mode}, games=[${this.config.selectedGames?.join(",") ?? "all"}], maxGames=${this.config.maxGames ?? "unlimited"}, pause=${this.config.pauseBetweenGames}ms, aiAutoEnd=${this.config.aiAutoEnd ?? false}`);
   }
 
   getConfig(): StreamConfig {
@@ -97,12 +99,16 @@ export class StreamManager {
 
   requestSkip(): void {
     this.skipRequested = true;
+    logger.info(`[StreamManager] skip requested (current phase: ${this.getCurrentPhase()})`);
     this.hub.emit("game:skipped");
   }
 
   consumeSkip(): boolean {
     const skip = this.skipRequested;
     this.skipRequested = false;
+    if (skip) {
+      logger.info("[StreamManager] skip consumed");
+    }
     return skip;
   }
 

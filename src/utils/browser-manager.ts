@@ -53,10 +53,12 @@ export class BrowserManager {
    * Starts a headed browser and navigates to the given URL.
    */
   async launchDaemon(url: string): Promise<void> {
+    const start = Date.now();
     // Kill ALL stale daemon processes (agent-browser close only closes one)
     await this.killAllStaleBrowsers();
+    logger.info(`[Browser] stale browsers killed (${Date.now() - start}ms)`);
 
-    logger.info(`Launching browser: ${url}`);
+    logger.info(`[Browser] launching browser: ${url}`);
 
     this.daemonProcess = spawn("agent-browser", ["--headed", "open", url], {
       stdio: "ignore",
@@ -82,7 +84,7 @@ export class BrowserManager {
     // Ensure the target URL is loaded (daemon startup may leave browser on about:blank)
     await this.ensureNavigation(url);
 
-    logger.info("Browser launched successfully");
+    logger.info(`[Browser] launched successfully (total: ${Date.now() - start}ms)`);
   }
 
   /**
@@ -180,7 +182,7 @@ export class BrowserManager {
    */
   async navigate(url: string): Promise<void> {
     if (!this.state.running) {
-      logger.info("Browser not running, cannot navigate");
+      logger.info("[Browser] not running, cannot navigate");
       return;
     }
 
@@ -189,9 +191,10 @@ export class BrowserManager {
         ? `agent-browser --cdp ${this.state.cdpPort} open "${url}"`
         : `agent-browser open "${url}"`;
 
+    const start = Date.now();
     try {
       execSync(cmd, { timeout: 15000, stdio: "pipe" });
-      logger.info(`Navigated to: ${url}`);
+      logger.info(`[Browser] navigated to: ${url} (${Date.now() - start}ms)`);
     } catch (err) {
       logger.error(`Failed to navigate to ${url}:`, err);
       // Check if browser is still running

@@ -28,20 +28,22 @@ export class SessionManager {
 
   async createGameSession(game: GameConfig): Promise<string> {
     let sessionId: string;
+    const start = Date.now();
     if (this.state.sessionId) {
       // 既存セッションを再利用
       sessionId = this.state.sessionId;
-      logger.info(`Reusing session: ${sessionId} for ${game.nameJa}`);
+      logger.info(`[Session] reusing session: ${sessionId} for ${game.nameJa}`);
     } else {
       // 初回: 新規作成
-      logger.debug(`createGameSession: calling client.session.create for ${game.nameJa}...`);
+      logger.info(`[Session] creating new session for ${game.nameJa}...`);
       const result = await this.client.session.create({
         body: { title: "ニケの配信" },
       });
-      logger.debug(`createGameSession: result=${JSON.stringify(result.data)}`);
+      const elapsed = Date.now() - start;
+      logger.debug(`[Session] create result=${JSON.stringify(result.data)}`);
       sessionId = result.data!.id;
       this.state.sessionId = sessionId;
-      logger.info(`Session created: ${sessionId} for ${game.nameJa}`);
+      logger.info(`[Session] created: ${sessionId} for ${game.nameJa} (${elapsed}ms)`);
     }
     this.state.currentGame = game.id;
     this.state.isPlaying = true;
@@ -125,9 +127,11 @@ export class SessionManager {
   }
 
   async abortSession(sessionId: string): Promise<void> {
+    const start = Date.now();
+    logger.info(`[Session] aborting session: ${sessionId}`);
     await this.client.session.abort({ path: { id: sessionId } });
     this.state.isPlaying = false;
-    logger.info(`Session aborted: ${sessionId}`);
+    logger.info(`[Session] aborted: ${sessionId} (${Date.now() - start}ms)`);
   }
 
   getState(): StreamingState {
@@ -139,9 +143,11 @@ export class SessionManager {
     this.state.currentGame = null;
     this.state.isPlaying = false;
     // Note: sessionId は意図的にクリアしない（永続セッション）
+    logger.info(`[Session] game marked completed: ${gameId} (total played: ${this.state.gamesPlayed.length})`);
   }
 
   resetSession(): void {
+    logger.info(`[Session] resetSession (was: sessionId=${this.state.sessionId}, game=${this.state.currentGame})`);
     this.state.sessionId = null;
     this.state.currentGame = null;
     this.state.isPlaying = false;
@@ -149,6 +155,8 @@ export class SessionManager {
   }
 
   resetGamesPlayed(): void {
+    const prev = this.state.gamesPlayed.length;
     this.state.gamesPlayed = [];
+    logger.info(`[Session] gamesPlayed reset (was ${prev} games)`);
   }
 }

@@ -222,6 +222,7 @@ export class EventMonitor {
           this.cleanTextLength = 0;
 
           const cmd = state.input?.command ?? state.input?.path ?? "";
+          logger.info(`[Agent] tool:running ${tool} ${String(cmd).substring(0, 150)}`);
           this.output(`\n  [${tool}] ${cmd}\n`);
           this.eventHub?.pushActivity("tool", String(cmd), {
             toolName: tool,
@@ -235,12 +236,14 @@ export class EventMonitor {
             lines.length > 5
               ? lines.slice(0, 5).join("\n") + `\n  ... (${lines.length} lines)`
               : output;
+          logger.info(`[Agent] tool:completed ${tool} (${lines.length} lines)`);
           this.output(`  => ${preview}\n`);
           this.eventHub?.pushActivity("tool", preview, {
             toolName: tool,
             toolStatus: "completed",
           });
         } else if (state.status === "error") {
+          logger.error(`[Agent] tool:error ${tool}: ${state.error}`);
           this.output(`  [ERROR] ${state.error}\n`);
           this.eventHub?.pushActivity("tool", state.error ?? "Unknown error", {
             toolName: tool,
