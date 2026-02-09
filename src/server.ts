@@ -8,7 +8,9 @@ export async function killPort(port: number): Promise<void> {
   try {
     const pidOutput = execSync(`lsof -t -i:${port} 2>/dev/null`).toString().trim();
     if (pidOutput) {
-      const pids = pidOutput.split("\n").filter(Boolean);
+      const myPid = process.pid.toString();
+      const pids = pidOutput.split("\n").filter(Boolean).filter((pid) => pid !== myPid);
+      if (pids.length === 0) return;
       logger.info(`Killing existing process on port ${port} (pids: ${pids.join(", ")})`);
       for (const pid of pids) {
         try {

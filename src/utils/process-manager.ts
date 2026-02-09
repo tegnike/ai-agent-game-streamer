@@ -96,7 +96,9 @@ export class ProcessManager {
         .toString()
         .trim();
       if (pidOutput) {
-        const pids = pidOutput.split("\n").filter(Boolean);
+        const myPid = process.pid.toString();
+        const pids = pidOutput.split("\n").filter(Boolean).filter((pid) => pid !== myPid);
+        if (pids.length === 0) return;
         for (const pid of pids) {
           try {
             execSync(`kill ${pid} 2>/dev/null`);
