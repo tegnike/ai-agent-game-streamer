@@ -27,6 +27,8 @@ export class EventHub {
   private commentCounter = 0;
   private ttsSpeaking = false;
   private ttsWaiters: Array<() => void> = [];
+  private ttsBusy = false;
+  private ttsBusyWaiters: Array<() => void> = [];
 
   private state: StreamState = {
     phase: "idle",
@@ -60,6 +62,12 @@ export class EventHub {
       data: data ?? null,
       timestamp: Date.now(),
     };
+    // Log all events except high-frequency agent text/reasoning deltas
+    if (type !== "agent:text" && type !== "agent:reasoning") {
+      logger.info(`[EventHub] emit: ${type}${data ? ` data=${JSON.stringify(data).substring(0, 200)}` : ""}`);
+    } else {
+      logger.debug(`[EventHub] emit: ${type} (delta)`);
+    }
     this.emitter.emit(type, event);
     this.emitter.emit("*", event);
   }
@@ -79,7 +87,9 @@ export class EventHub {
   }
 
   setPhase(phase: StreamPhase): void {
+    const prev = this.state.phase;
     this.state.phase = phase;
+    logger.info(`[EventHub] phase: ${prev} -> ${phase}`);
     this.emitter.emit("state:changed", { phase });
   }
 
@@ -88,12 +98,20 @@ export class EventHub {
   }
 
   setCurrentGame(gameId: GameId | null, config: GameConfig | null): void {
+    const prev = this.state.currentGame;
     this.state.currentGame = gameId;
     this.state.currentGameConfig = config;
+    if (prev !== gameId) {
+      logger.info(`[EventHub] currentGame: ${prev ?? "null"} -> ${gameId ?? "null"}`);
+    }
   }
 
   setSessionId(sessionId: string | null): void {
+    const prev = this.state.sessionId;
     this.state.sessionId = sessionId;
+    if (prev !== sessionId) {
+      logger.info(`[EventHub] sessionId: ${prev ?? "null"} -> ${sessionId ?? "null"}`);
+    }
   }
 
   setConfig(config: StreamConfig): void {
@@ -107,11 +125,17 @@ export class EventHub {
 
   setError(error: string | null): void {
     this.state.error = error;
+    if (error) {
+      logger.warn(`[EventHub] error set: ${error}`);
+    } else {
+      logger.debug("[EventHub] error cleared");
+    }
   }
 
   addGamePlayed(gameId: GameId): void {
     this.state.gamesPlayed.push(gameId);
     this.state.gamesCompleted++;
+    logger.info(`[EventHub] gameCompleted: ${gameId} (total: ${this.state.gamesCompleted}, played: [${this.state.gamesPlayed.join(", ")}])`);
   }
 
   resetGamesPlayed(): void {
@@ -129,13 +153,21 @@ export class EventHub {
   }
 
   setBrowserState(browser: BrowserState): void {
+    const prev = this.state.browser;
     this.state.browser = { ...browser };
+    if (prev.running !== browser.running || prev.mode !== browser.mode) {
+      logger.info(`[EventHub] browser: mode=${prev.mode}->${browser.mode}, running=${prev.running}->${browser.running}`);
+    }
   }
 
   // --- TTS synchronization ---
 
   setTTSSpeaking(speaking: boolean): void {
+    const prev = this.ttsSpeaking;
     this.ttsSpeaking = speaking;
+    if (prev !== speaking) {
+      logger.debug(`[EventHub] TTS: ${prev ? "speaking" : "idle"} -> ${speaking ? "speaking" : "idle"} (waiters: ${this.ttsWaiters.length})`);
+    }
     if (!speaking) {
       const waiters = this.ttsWaiters;
       this.ttsWaiters = [];
@@ -154,6 +186,34 @@ export class EventHub {
     if (!this.ttsSpeaking) return Promise.resolve();
     return new Promise<void>((resolve) => {
       this.ttsWaiters.push(resolve);
+    });
+  }
+
+  // --- TTS busy (pipeline-wide) ---
+
+  setTTSBusy(busy: boolean): void {
+    const prev = this.ttsBusy;
+    this.ttsBusy = busy;
+    if (prev !== busy) {
+      logger.debug(`[EventHub] TTS busy: ${prev} -> ${busy} (waiters: ${this.ttsBusyWaiters.length})`);
+    }
+    if (!busy) {
+      const waiters = this.ttsBusyWaiters;
+      this.ttsBusyWaiters = [];
+      for (const resolve of waiters) {
+        resolve();
+      }
+    }
+  }
+
+  getTTSBusy(): boolean {
+    return this.ttsBusy;
+  }
+
+  waitForTTSBusyIdle(): Promise<void> {
+    if (!this.ttsBusy) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.ttsBusyWaiters.push(resolve);
     });
   }
 

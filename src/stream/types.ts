@@ -165,7 +165,7 @@ export type AdminCommand =
   | { type: "browser:launch" }
   | { type: "browser:launch-cdp"; port: number }
   | { type: "browser:close" }
-  | { type: "tts:status"; speaking: boolean };
+  | { type: "tts:status"; speaking: boolean; busy?: boolean };
 
 export type ServerEvent =
   | { type: "state:full"; data: StreamState }

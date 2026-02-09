@@ -15,9 +15,28 @@ export class TTSPipeline {
   private hasTextInCurrentGen = false
   audioPlayer: AudioPlayer
   onSubtitleChange: ((text: string) => void) | null = null
+  onBusyChange: ((busy: boolean) => void) | null = null
+  private lastBusyState = false
 
   constructor(audioPlayer: AudioPlayer) {
     this.audioPlayer = audioPlayer
+  }
+
+  get isBusy(): boolean {
+    return (
+      this.textBuffer.length > 0 ||
+      this.queue.some((s) => s.status !== 'done' && s.status !== 'cancelled') ||
+      this.isProcessing ||
+      this.audioPlayer.isSpeaking
+    )
+  }
+
+  private notifyBusyChange(): void {
+    const busy = this.isBusy
+    if (busy !== this.lastBusyState) {
+      this.lastBusyState = busy
+      this.onBusyChange?.(busy)
+    }
   }
 
   /** テキストデルタ受信時（agent:activity type "text" のcontent） */
@@ -34,6 +53,7 @@ export class TTSPipeline {
       this.enqueueSentence(text, this.generationId)
     }
     this.scheduleProcessQueue()
+    this.notifyBusyChange()
   }
 
   /** 新しい世代開始（ツールコール開始検出時） */
@@ -68,6 +88,7 @@ export class TTSPipeline {
     )
 
     this.scheduleProcessQueue()
+    this.notifyBusyChange()
   }
 
   /** 完全リセット（WebSocket再接続時） */
@@ -89,6 +110,8 @@ export class TTSPipeline {
       clearTimeout(this.retryTimer)
       this.retryTimer = null
     }
+    this.lastBusyState = false
+    this.notifyBusyChange()
   }
 
   private enqueueSentence(text: string, genId: number): void {
@@ -113,6 +136,7 @@ export class TTSPipeline {
         this.enqueueSentence(this.textBuffer.trim(), this.generationId)
         this.textBuffer = ''
         this.scheduleProcessQueue()
+        this.notifyBusyChange()
       }
     }, FLUSH_TIMEOUT_MS)
   }
@@ -234,6 +258,7 @@ export class TTSPipeline {
       }
     } finally {
       this.isProcessing = false
+      this.notifyBusyChange()
       console.debug('[TTS] processQueue ended, remaining:', this.queue.length)
       const hasPending = this.queue.some((s) => s.status === 'pending')
       if (hasPending) {

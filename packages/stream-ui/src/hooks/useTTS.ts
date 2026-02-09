@@ -6,6 +6,7 @@ import { AudioPlayer } from '../services/audio-player'
 export function useTTS(): TTSPipeline {
   const setIsSpeaking = useStreamStore((s) => s.setIsSpeaking)
   const setSubtitle = useStreamStore((s) => s.setSubtitle)
+  const setIsTTSBusy = useStreamStore((s) => s.setIsTTSBusy)
   const pipelineRef = useRef<TTSPipeline | null>(null)
 
   if (!pipelineRef.current) {
@@ -13,6 +14,7 @@ export function useTTS(): TTSPipeline {
     player.setOnStateChange((speaking) => setIsSpeaking(speaking))
     const pipeline = new TTSPipeline(player)
     pipeline.onSubtitleChange = (text) => setSubtitle(text)
+    pipeline.onBusyChange = (busy) => setIsTTSBusy(busy)
     pipelineRef.current = pipeline
   }
 

@@ -148,9 +148,25 @@ export class StreamServer {
   }
 
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
+    const reqStart = Date.now();
     const url = new URL(req.url ?? "/", `http://localhost:${this.port}`);
     const path = url.pathname;
     const method = req.method ?? "GET";
+
+    // Log API requests (skip static and CORS preflight for readability)
+    if (path.startsWith("/api/")) {
+      logger.info(`[HTTP] -> ${method} ${path}`);
+    }
+
+    // Attach timing log to response finish
+    const origEnd = res.end.bind(res);
+    res.end = ((...args: Parameters<typeof res.end>) => {
+      const elapsed = Date.now() - reqStart;
+      if (path.startsWith("/api/")) {
+        logger.info(`[HTTP] <- ${method} ${path} ${res.statusCode} (${elapsed}ms)`);
+      }
+      return origEnd(...args);
+    }) as typeof res.end;
 
     // CORS preflight
     if (method === "OPTIONS") {
@@ -221,8 +237,9 @@ export class StreamServer {
             res.end(JSON.stringify(data));
           };
 
-          if (!this.hub.getTTSSpeaking()) {
-            sendTts({ waited: false, speaking: false });
+          const isBusy = this.hub.getTTSBusy() || this.hub.getTTSSpeaking();
+          if (!isBusy) {
+            sendTts({ waited: false, speaking: false, busy: false });
             return;
           }
 
@@ -230,7 +247,10 @@ export class StreamServer {
             sendTts({ waited: true, timedOut: true });
           }, TTS_WAIT_TIMEOUT);
 
-          this.hub.waitForTTSIdle().then(() => {
+          Promise.all([
+            this.hub.waitForTTSBusyIdle(),
+            this.hub.waitForTTSIdle(),
+          ]).then(() => {
             clearTimeout(timeout);
             sendTts({ waited: true, timedOut: false });
           });

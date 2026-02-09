@@ -127,6 +127,7 @@ export class WSHandler {
       logger.info(`Admin WebSocket disconnected (total: ${this.clients.size})`);
       if (this.clients.size === 0) {
         this.hub.setTTSSpeaking(false);
+        this.hub.setTTSBusy(false);
       }
     });
 
@@ -137,7 +138,8 @@ export class WSHandler {
   }
 
   private handleCommand(command: AdminCommand): void {
-    logger.info(`Admin command: ${command.type}`);
+    const detail = JSON.stringify(command);
+    logger.info(`[WS] Admin command: ${command.type} ${detail.length > 200 ? detail.substring(0, 200) + "..." : detail}`);
 
     switch (command.type) {
       case "stream:start":
@@ -194,6 +196,9 @@ export class WSHandler {
 
       case "tts:status":
         this.hub.setTTSSpeaking(command.speaking);
+        if (command.busy !== undefined) {
+          this.hub.setTTSBusy(command.busy);
+        }
         break;
 
       default:
@@ -217,6 +222,11 @@ export class WSHandler {
           agentSpeech: state.agentSpeech,
         },
       });
+    }
+
+    // Log non-delta broadcasts
+    if (event.type !== "agent:text" && event.type !== "agent:reasoning") {
+      logger.debug(`[WS] broadcast: ${mapped.type} -> ${this.clients.size} clients (source: ${event.type})`);
     }
 
     for (const client of this.clients) {

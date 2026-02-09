@@ -146,6 +146,31 @@ describe("WSHandler", () => {
       const lastMsg = JSON.parse(ws.sent[ws.sent.length - 1]);
       assert.equal(lastMsg.type, "error");
     });
+
+    it("should handle tts:status with speaking only (backward compat)", () => {
+      const ws = createMockWs();
+      handler.handleConnection(ws as never);
+      ws.simulateMessage(JSON.stringify({ type: "tts:status", speaking: true }));
+      assert.equal(hub.getTTSSpeaking(), true);
+      assert.equal(hub.getTTSBusy(), false); // busy not sent, should remain default
+    });
+
+    it("should handle tts:status with speaking and busy", () => {
+      const ws = createMockWs();
+      handler.handleConnection(ws as never);
+      ws.simulateMessage(JSON.stringify({ type: "tts:status", speaking: true, busy: true }));
+      assert.equal(hub.getTTSSpeaking(), true);
+      assert.equal(hub.getTTSBusy(), true);
+    });
+
+    it("should clear busy on last client disconnect", () => {
+      const ws = createMockWs();
+      handler.handleConnection(ws as never);
+      ws.simulateMessage(JSON.stringify({ type: "tts:status", speaking: true, busy: true }));
+      ws.simulateClose();
+      assert.equal(hub.getTTSSpeaking(), false);
+      assert.equal(hub.getTTSBusy(), false);
+    });
   });
 
   describe("event broadcasting", () => {

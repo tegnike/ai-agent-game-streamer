@@ -27,6 +27,8 @@ interface StreamStore {
   // TTS state
   isSpeaking: boolean
   setIsSpeaking: (speaking: boolean) => void
+  isTTSBusy: boolean
+  setIsTTSBusy: (busy: boolean) => void
   currentSubtitle: string
   setSubtitle: (text: string) => void
 
@@ -91,6 +93,8 @@ export const useStreamStore = create<StreamStore>((set) => ({
 
   isSpeaking: false,
   setIsSpeaking: (speaking) => set({ isSpeaking: speaking }),
+  isTTSBusy: false,
+  setIsTTSBusy: (busy) => set({ isTTSBusy: busy }),
   currentSubtitle: '',
   setSubtitle: (text) => set({ currentSubtitle: text }),
 

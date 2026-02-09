@@ -209,4 +209,43 @@ describe("EventHub", () => {
       assert.equal(snapshot.comments.length, 1);
     });
   });
+
+  describe("TTS busy state", () => {
+    it("should default to not busy", () => {
+      assert.equal(hub.getTTSBusy(), false);
+    });
+
+    it("should track busy state", () => {
+      hub.setTTSBusy(true);
+      assert.equal(hub.getTTSBusy(), true);
+      hub.setTTSBusy(false);
+      assert.equal(hub.getTTSBusy(), false);
+    });
+
+    it("should resolve waitForTTSBusyIdle immediately when not busy", async () => {
+      await hub.waitForTTSBusyIdle();
+      // If we reach here, it resolved immediately
+      assert.ok(true);
+    });
+
+    it("should wait for busy to become idle", async () => {
+      hub.setTTSBusy(true);
+      let resolved = false;
+      const promise = hub.waitForTTSBusyIdle().then(() => { resolved = true; });
+      assert.equal(resolved, false);
+      hub.setTTSBusy(false);
+      await promise;
+      assert.equal(resolved, true);
+    });
+
+    it("should resolve multiple waiters", async () => {
+      hub.setTTSBusy(true);
+      let count = 0;
+      const p1 = hub.waitForTTSBusyIdle().then(() => { count++; });
+      const p2 = hub.waitForTTSBusyIdle().then(() => { count++; });
+      hub.setTTSBusy(false);
+      await Promise.all([p1, p2]);
+      assert.equal(count, 2);
+    });
+  });
 });

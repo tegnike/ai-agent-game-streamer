@@ -26,6 +26,7 @@ export function useWebSocket(pipeline: TTSPipeline) {
     setIsLive,
   } = useStreamStore()
   const isSpeaking = useStreamStore((s) => s.isSpeaking)
+  const isTTSBusy = useStreamStore((s) => s.isTTSBusy)
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {
@@ -137,7 +138,7 @@ export function useWebSocket(pipeline: TTSPipeline) {
   useEffect(() => {
     const ws = wsRef.current
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'tts:status', speaking: isSpeaking }))
+      ws.send(JSON.stringify({ type: 'tts:status', speaking: isSpeaking, busy: isTTSBusy }))
     }
-  }, [isSpeaking])
+  }, [isSpeaking, isTTSBusy])
 }
