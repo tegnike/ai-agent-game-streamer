@@ -90,11 +90,18 @@ export class ProcessManager {
     }
 
     try {
-      const pid = execSync(`lsof -t -i:${port} 2>/dev/null`)
+      const pidOutput = execSync(`lsof -t -i:${port} 2>/dev/null`)
         .toString()
         .trim();
-      if (pid) {
-        execSync(`kill ${pid} 2>/dev/null`);
+      if (pidOutput) {
+        const pids = pidOutput.split("\n").filter(Boolean);
+        for (const pid of pids) {
+          try {
+            execSync(`kill ${pid} 2>/dev/null`);
+          } catch {
+            // Process may already be dead
+          }
+        }
         await new Promise((r) => setTimeout(r, 500));
       }
     } catch {

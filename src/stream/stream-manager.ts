@@ -41,6 +41,13 @@ export class StreamManager {
 
   transition(to: StreamPhase): boolean {
     const from = this.hub.getState().phase;
+
+    // No-op if already in the target phase
+    if (from === to) {
+      logger.debug(`Already in phase: ${to}, skipping transition`);
+      return true;
+    }
+
     const allowed = ALLOWED_TRANSITIONS[from];
 
     if (!allowed || !allowed.has(to)) {

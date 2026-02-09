@@ -6,10 +6,17 @@ import { logger } from "./utils/logger.js";
 
 export async function killPort(port: number): Promise<void> {
   try {
-    const pid = execSync(`lsof -t -i:${port} 2>/dev/null`).toString().trim();
-    if (pid) {
-      logger.info(`Killing existing process on port ${port} (pid: ${pid})`);
-      execSync(`kill ${pid} 2>/dev/null`);
+    const pidOutput = execSync(`lsof -t -i:${port} 2>/dev/null`).toString().trim();
+    if (pidOutput) {
+      const pids = pidOutput.split("\n").filter(Boolean);
+      logger.info(`Killing existing process on port ${port} (pids: ${pids.join(", ")})`);
+      for (const pid of pids) {
+        try {
+          execSync(`kill ${pid} 2>/dev/null`);
+        } catch {
+          // Process may already be dead
+        }
+      }
       await new Promise((r) => setTimeout(r, 500));
     }
   } catch {

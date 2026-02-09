@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { startServer, connectToServer, killPort } from "./server.js";
+import { startServer, connectToServer } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
@@ -203,10 +203,7 @@ async function main() {
             return { success: false, error: "No pending config to apply" };
           }
 
-          // Kill existing OpenCode server
-          await killPort(OPENCODE_CONFIG.port);
-
-          // Start new server with new config
+          // Start new server with new config (startServer handles killing existing process)
           clientRef.current = await startServer(newConfig);
 
           // Update orchestrator with new client
@@ -239,8 +236,11 @@ async function main() {
       bridge.start();
     }
 
-    // Setup graceful shutdown
+    // Setup graceful shutdown (guard against double invocation)
+    let shuttingDown = false;
     const shutdown = async () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       logger.info("Shutting down...");
       streamManager!.transition("stopped");
       orchestrator.getEventMonitor().stopMonitoring();
