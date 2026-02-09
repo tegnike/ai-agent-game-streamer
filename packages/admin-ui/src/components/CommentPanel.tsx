@@ -42,7 +42,7 @@ export function CommentPanel({ sendCommand }: Props) {
   };
 
   return (
-    <CollapsiblePanel title="Viewer Comments" className="comment-panel">
+    <CollapsiblePanel title="Viewer Comments" className="comment-panel" defaultOpen={false}>
       <div className="comment-list">
         {comments.length === 0 && (
           <div className="comment-empty">No comments yet</div>
