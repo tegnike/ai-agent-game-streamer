@@ -1,469 +1,304 @@
 # AI Agent Game Streamer
 
-AIエージェントがブラウザベースのボードゲームをプレイ・配信するためのプロジェクトです。
+AIエージェントがブラウザベースのゲームをプレイし、その様子を配信・監視するためのプロジェクトです。
 
-2つの実行方式をサポートしています：
+このリポジトリには大きく分けて3つの仕組みがあります。
 
-- **オーケストレーター方式** (`src/`): OpenCode SDKを通じてAIエージェントのゲームプレイを自動制御。ゲーム選択→サーバー起動→プレイ→クリーンアップを一気通貫で実行
-- **スキル方式** (`.agents/skills/`): Claude Code のカスタムスキルを使い、対話的にゲーム作成・プレイを実行
-
-さらに **配信プラットフォームモード** (`--admin`) を使うと、管理用WebUI・リアルタイム監視・視聴者コメント連携・外部ビジュアルアプリ連携が利用可能です。
+- **オーケストレーター** (`src/`): OpenCode SDK経由でAIエージェントを起動し、ゲームHTTPサーバー・ブラウザ・セッション・ログをまとめて制御します。
+- **配信プラットフォーム** (`src/stream/`, `packages/admin-ui/`, `packages/stream-ui/`): 管理UI、WebSocket/REST API、コメント連携、TTS待機、外部ビジュアル連携を提供します。
+- **Codex/Claude系スキル** (`.agents/skills/`): ゲーム作成、ブラウザ操作、自動プレイ、画像生成、検証用のローカルスキル群です。
 
 ## 収録ゲーム
 
-ゲーム一覧ページ (`games/index.html`) からすべてのゲームにアクセスできます。
+ゲーム一覧ページは `games/index.html` です。オーケストレーター起動時は `games/` をHTTPサーバーのルートとして公開するため、各ゲームは `http://127.0.0.1:8888/<game-id>/index.html` で開けます。
 
-| ゲーム | 説明 | 操作方式 | API |
-|--------|------|----------|-----|
-| [オセロ](games/othello/) | 8x8ボードで石を挟んで裏返す | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
-| [五目並べ](games/gomoku/) | 19x19碁盤で先に5つ並べたら勝ち | セルクリック | `handleCellClick(row, col)`, `getValidMoves(player)` |
-| [倉庫番](games/sokoban/) | 箱を押してゴールに運ぶパズル（10ステージ） | 方向キー移動 | `move(direction)`, `undo()`, `loadStage(n)` |
-| [カードバトル](games/card-battle/) | 属性カードで戦う Element Clash | カード選択 | `playCard()`, `sacrificeCard()`, `getGameState()` |
-
-## アーキテクチャ
-
-### スタンドアロンモード
-
-```
-┌─────────────────────────────────────────────────────┐
-│  CLI (src/index.ts)                                 │
-│  --game=othello --provider=openai --loop             │
-└──────────┬──────────────────────────────────────────┘
-           │
-┌──────────▼──────────────────────────────────────────┐
-│  GameOrchestrator                                   │
-│  ┌─────────────┐ ┌──────────────┐ ┌──────────────┐ │
-│  │ Session      │ │ Event        │ │ Process      │ │
-│  │ Manager      │ │ Monitor      │ │ Manager      │ │
-│  └──────┬──────┘ └──────┬───────┘ └──────┬───────┘ │
-└─────────┼───────────────┼────────────────┼──────────┘
-          │               │                │
-┌─────────▼───────────────▼────────┐ ┌─────▼────────┐
-│  OpenCode Server (:4096)         │ │ HTTP Server  │
-│  agent: game-streamer            │ │ (:8888)      │
-│  ┌─────────────────────────┐     │ │ python3 -m   │
-│  │ agent-browser (Playwright)│    │ │ http.server  │
-│  └─────────────────────────┘     │ └──────┬───────┘
-└──────────────────────────────────┘        │
-                                    ┌───────▼────────┐
-                                    │ games/<game>  │
-                                    │ HTML/CSS/JS     │
-                                    └────────────────┘
-```
-
-### 配信プラットフォームモード (`--admin`)
-
-```
-┌──────────────────┐     ┌──────────────────────────────────┐
-│  Admin UI        │     │  External Visual App             │
-│  (React + Vite)  │     │  (HTTP POST受信)                  │
-│  localhost:5173   │     └──────────────────────────────────┘
-└────────┬─────────┘                    ▲
-         │ WS + REST                    │ HTTP POST
-         ▼                              │
-┌──────────────────────────────────────────────────────────┐
-│              Stream Server (:3000) [node:http + ws]       │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │ WebSocket Hub│  │ REST API     │  │ Visual Bridge  │  │
-│  │ (/ws/admin)  │  │ (/api/...)   │  │ (HTTP POST送信)│  │
-│  └──────┬───────┘  └──────┬───────┘  └───────┬────────┘  │
-│         └─────────┬───────┘                   │           │
-│                   ▼                           │           │
-│           ┌───────────────┐                   │           │
-│           │   Event Hub   │───────────────────┘           │
-│           │  (pub/sub)    │                               │
-│           └───────┬───────┘                               │
-│                   │                                       │
-│    ┌──────────────┼──────────────────┐                    │
-│    ▼              ▼                  ▼                    │
-│ GameOrchestrator  EventMonitor  CommentIngester           │
-│ (既存拡張)        (既存拡張)    (YouTube API)              │
-└──────────────────────────────────────────────────────────┘
-         │
-         ▼
-  OpenCode SDK (localhost:4096) → AI Agent → Game (localhost:8888)
-```
-
-### ポート管理
-
-| 用途 | ポート | 変更方法 |
-|------|--------|----------|
-| ゲームHTTPサーバー | 8888 | `config.ts` |
-| OpenCodeサーバー | 4096 | `config.ts` |
-| Stream Server | 3000 | `--admin-port` or `STREAM_PORT` 環境変数 |
-| React devサーバー | 5173 | 開発時のみ（Vite） |
-
-### データフロー（スタンドアロン）
-
-1. CLI がオプションを解析し、プロバイダー/モデルを設定
-2. OpenCode サーバーを起動（またはexisting serverに接続）
-3. GameOrchestrator がゲーム用HTTPサーバーをspawn
-4. OpenCode セッションを作成し、ゲームプレイのプロンプトを送信
-5. EventMonitor がイベントストリーム（テキスト出力、ツール実行、エラー）をリアルタイムで監視・ログ出力
-6. セッション完了（`session.idle`）でクリーンアップ
-7. ループモードの場合は3秒のポーズを挟んで次のゲームへ
-
-### データフロー（配信プラットフォーム）
-
-1. `--admin` フラグ付きで起動するとEventHub・StreamManager・StreamServerが初期化される
-2. Admin UIからWebSocket経由で `stream:start` コマンドを送信
-3. StreamManagerが状態を管理し、GameOrchestratorがゲームを実行
-4. EventMonitorのイベントがEventHubを経由してWebSocketでAdmin UIにリアルタイム配信
-5. 管理者はAdmin UIからメッセージ送信・ゲームスキップ・一時停止等を操作
-6. YouTube Live Chat APIからコメントを取得し、キュー管理してAIに回答させる
-7. Visual Bridgeが外部ビジュアルアプリにHTTP POSTでイベントを転送
-
-## プロジェクト構成
-
-```
-ai-agent-game-streamer/
-├── src/                         # オーケストレーション層（TypeScript）
-│   ├── index.ts                 #   エントリーポイント（--admin対応）
-│   ├── game-orchestrator.ts     #   ゲーム進行制御（配信ループ対応）
-│   ├── session-manager.ts       #   OpenCodeセッション管理・プロンプト構築
-│   ├── event-monitor.ts         #   イベントストリーム監視（EventHub連携）
-│   ├── server.ts                #   OpenCodeサーバー起動・接続
-│   ├── config.ts                #   プロバイダープリセット・定数定義
-│   ├── types.ts                 #   型定義（GameId, GameConfig, StreamingState）
-│   ├── games/
-│   │   └── game-registry.ts     #   ゲームメタデータレジストリ
-│   ├── stream/                  #   配信プラットフォーム層
-│   │   ├── types.ts             #     配信関連型定義
-│   │   ├── event-hub.ts         #     イベントバス（pub/sub）
-│   │   ├── stream-manager.ts    #     配信ライフサイクル管理
-│   │   ├── stream-server.ts     #     HTTP + WebSocketサーバー
-│   │   ├── ws-handler.ts        #     WebSocket接続管理
-│   │   ├── visual-bridge.ts     #     外部ビジュアルアプリ連携
-│   │   ├── comment-ingester.ts  #     コメント収集・管理
-│   │   ├── comments/
-│   │   │   ├── comment-adapter.ts   # アダプターインターフェース
-│   │   │   └── youtube-adapter.ts   # YouTube Live Chat実装
-│   │   └── __tests__/           #     ユニットテスト
-│   │       ├── event-hub.test.ts
-│   │       ├── stream-manager.test.ts
-│   │       └── ws-handler.test.ts
-│   └── utils/
-│       ├── logger.ts            #   ロガー（stdout + ファイル二重出力）
-│       └── process-manager.ts   #   HTTPサーバープロセス管理
-├── admin-ui/                    # 管理用WebUI（React + Vite）
-│   ├── package.json
-│   ├── vite.config.ts           #   API/WSプロキシ設定
-│   ├── src/
-│   │   ├── App.tsx              #     メインレイアウト
-│   │   ├── store/
-│   │   │   └── stream-store.ts  #     zustand状態管理
-│   │   ├── hooks/
-│   │   │   ├── useWebSocket.ts  #     WebSocket接続（自動再接続）
-│   │   │   └── useStreamState.ts #    セレクタhooks
-│   │   ├── components/
-│   │   │   ├── StreamControl.tsx    # 開始/停止/一時停止
-│   │   │   ├── GameSelector.tsx     # ゲーム選択
-│   │   │   ├── AgentMonitor.tsx     # AI思考・発話表示
-│   │   │   ├── MessagePanel.tsx     # 管理者→AIメッセージ
-│   │   │   ├── CommentPanel.tsx     # コメント管理
-│   │   │   ├── YouTubePanel.tsx     # YouTube連携設定
-│   │   │   ├── VisualBridgePanel.tsx # ビジュアルAPI設定
-│   │   │   ├── EventLog.tsx         # イベントログ
-│   │   │   └── ConnectionStatus.tsx # 接続状態
-│   │   └── styles/
-│   │       └── globals.css
-│   └── dist/                    #   ビルド済みファイル（自動生成）
-├── .agents/skills/              # カスタムスキル
-│   ├── agent-browser/           #   ブラウザ自動操作（Playwright）
-│   ├── create-game/       #   ボードゲーム作成
-│   ├── play-game/               #   ゲーム自動プレイ
-│   ├── generate-image/          #   画像生成（Gemini API）
-│   └── generate-transparent-image/  # 透過画像生成（Gemini + PhotoRoom）
-├── games/                     # ゲーム集
-│   ├── index.html               #   ゲーム一覧ページ
-│   ├── common/                  #   共通スタイル
-│   ├── othello/                 #   オセロ
-│   ├── gomoku/                  #   五目並べ
-│   ├── sokoban/                 #   倉庫番
-│   └── card-battle/             #   カードバトル
-├── opencode.json                # OpenCode SDK 設定
-├── logs/                        # ゲームセッションログ（自動生成）
-└── dist/                        # コンパイル済みJS（自動生成）
-```
+| ゲームID | ゲーム | 説明 | 操作/API |
+|---|---|---|---|
+| `othello` | [オセロ](games/othello/) | 8x8のリバーシ。プレイヤー黒 vs CPU白 | `handleCellClick(row, col)`, `getValidMoves(player)`, `countStones()` |
+| `gomoku` | [五目並べ](games/gomoku/) | 19x19で5つ並べる対戦ゲーム | `handleCellClick(row, col)`, `getValidMoves()`, `countStones()` |
+| `sokoban` | [倉庫番](games/sokoban/) | 箱をゴールに運ぶ10ステージのパズル | `move(direction)`, `undo()`, `loadStage(index)`, `checkClear()` |
+| `card-battle` | [カードバトル](games/card-battle/) | 属性相性・チェイン・サクリファイスで戦うカードゲーム | `playCard(index)`, `sacrificeCard(index)`, `getGameState()`, `getValidMoves()` |
+| `minesweeper` | [マインスイーパー](games/minesweeper/) | 初級/中級/上級を持つマインスイーパー | `handleCellClick(row, col)`, `toggleFlag(row, col)`, `getGameState()` |
+| `chess` | [チェス](games/chess/) | 標準ルールのチェス。白プレイヤー vs 黒CPU | `handleCellClick(row, col)`, `getValidMoves(player)`, `getGameState()`, `completePromotion(type)` |
 
 ## セットアップ
 
 ### 必要なもの
 
-- **Node.js** (v18+)
-- **Python 3** （ゲーム配信用のローカルHTTPサーバー）
-- **agent-browser** （Playwrightベースのブラウザ自動操作ツール）
+- Node.js 18以上
+- Python 3
+- `agent-browser` 0.9.1以上
+- 利用するLLMプロバイダーのAPIキー
 
 ### インストール
 
 ```bash
-# 依存パッケージのインストール
 npm install
-
-# agent-browser のグローバルインストール
-npm install -g agent-browser
+npm install -g agent-browser@latest
 agent-browser install
-
-# TypeScript のビルド（オーケストレーター使用時）
 npm run build
-
-# 管理UI のインストール（配信プラットフォームモード使用時）
-cd admin-ui && npm install
 ```
 
-### 環境変数
+このリポジトリはnpm workspacesを使っています。管理UIや視聴者向けUIの依存関係も、通常はルートの `npm install` でインストールされます。
 
-使用するLLMプロバイダーに応じたAPIキーを設定してください。
+## LLM設定
 
-| プロバイダー | 環境変数 | デフォルトモデル |
-|-------------|---------|----------------|
-| OpenAI | `OPENAI_API_KEY` | gpt-4.1 |
-| Anthropic | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 |
-| Google | `GOOGLE_API_KEY` | gemini-2.5-pro |
-| Zai | `ZAI_API_KEY` | glm-4.7 |
+CLI引数で指定がない場合、現在のコードは `zai/glm-4.7` をデフォルトとしてOpenCodeサーバーを起動します。`opencode.json` はOpenCodeのベース設定ですが、通常の `npm run dev` / `npm run stream:managed` ではCLI側で生成した設定が優先されます。
 
-配信プラットフォームモードで使用する追加の環境変数:
+| プロバイダー | 環境変数 | デフォルトモデル | 小型モデル |
+|---|---|---|---|
+| OpenAI | `OPENAI_API_KEY` | `gpt-5.2` | `gpt-5-mini` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-sonnet-4-5-20250929` | `claude-haiku-4-5-20251001` |
+| Google | `GOOGLE_API_KEY` | `gemini-3-pro-preview` | `gemini-3-flash-preview` |
+| Zai | `ZAI_API_KEY` | `glm-4.7` | `glm-4.7-flash` |
+| Custom OpenAI Compatible | `CUSTOM_OPENAI_API_KEY` | UI/APIで指定 | UI/APIで指定 |
 
-| 用途 | 環境変数 | 説明 |
-|------|---------|------|
-| YouTubeコメント | `YOUTUBE_API_KEY` | YouTube Data API v3 キー |
-| StreamServerポート | `STREAM_PORT` | デフォルト: 3000 |
+`--reasoning-effort=low|medium|high` を指定すると、対応モデルではプロバイダーごとの推論オプションに変換されます。対応していないモデルでは無視されます。
 
 ## 使い方
 
-### オーケストレーター（自動プレイ）
+### スタンドアロン自動プレイ
 
 ```bash
-# ランダムなゲームを1回プレイ
 npm run dev
-
-# ゲームを指定してプレイ
 npm run dev -- --game=othello
-
-# プロバイダーを指定
-npm run dev -- --game=gomoku --provider=anthropic
-
-# モデルを直接指定（provider/model 形式）
-npm run dev -- --model=google/gemini-2.5-pro
-
-# ストリーミングループ（連続プレイ）
-npm run stream
-
-# 既存のOpenCodeサーバーに接続
+npm run dev -- --game=chess --provider=openai
+npm run dev -- --model=google/gemini-2.5-pro --reasoning-effort=high
 npm run dev -- --connect --game=sokoban
+npm run stream
 ```
 
-利用可能なゲームID: `othello`, `gomoku`, `sokoban`, `card-battle`
+主なCLIオプション:
+
+| オプション | 説明 |
+|---|---|
+| `--game=<id>` | 特定ゲームを1回プレイ。省略時はランダム |
+| `--loop` | 複数ゲームを連続プレイ |
+| `--provider=<name>` | `openai`, `anthropic`, `google`, `zai` から選択 |
+| `--model=<provider/model>` | モデルを直接指定 |
+| `--reasoning-effort=<level>` | `low`, `medium`, `high` |
+| `--connect` | 既存のOpenCodeサーバーへ接続 |
+| `--debug` | 詳細ログを有効化 |
 
 ### 配信プラットフォームモード
 
-管理UIからリアルタイムでAIの配信を制御するモードです。
+配信管理を使う場合は、バックエンドのStream Serverと管理UIを起動します。
 
 ```bash
-# 配信プラットフォームモードで起動
 npm run stream:managed
+npm run admin:dev
+```
 
-# ポートを変更して起動
+- Stream Server: `http://localhost:3000`
+- Admin UI: `http://localhost:5173`
+- WebSocket: `ws://localhost:3000/ws/admin`
+- ゲーム一覧: `http://127.0.0.1:8888/index.html`
+
+追加の起動例:
+
+```bash
 npm run stream:managed -- --admin-port=3100
-
-# ビジュアルアプリ連携付きで起動
-npm run stream:managed -- --visual-endpoint=http://localhost:5000/api/visual
-
-# プロバイダーを指定して起動
-npm run stream:managed -- --provider=anthropic
+npm run stream:managed -- --provider=anthropic --reasoning-effort=medium
+npm run stream:managed -- --visual-endpoint=http://localhost:5000/api/visual --visual-interval=500
+npm run stream:managed:debug
 ```
 
-起動後の操作:
+Admin UIからは配信開始/停止/一時停止/スキップ、ゲーム選択、AIへの管理者メッセージ送信、LLM設定変更、コメントソース接続、ブラウザ起動、外部ビジュアル連携を操作できます。
 
-1. 別ターミナルで管理UIの開発サーバーを起動: `npm run admin:dev`
-2. ブラウザで `http://localhost:5173` を開く
-3. Admin UIの「Stream Control」パネルからモード（single/multi）を選択して開始
+### 視聴者向けUI / TTS
 
-#### Admin UI の機能
-
-| パネル | 説明 |
-|--------|------|
-| Stream Control | 配信の開始/停止/一時停止/スキップ |
-| Game Selector | 利用可能なゲーム一覧の表示 |
-| Agent Monitor | AIの思考（reasoning）・発話（text）・ツール実行のリアルタイム表示 |
-| Message Panel | 管理者からAIエージェントへのメッセージ送信 |
-| Comment Panel | 視聴者コメントの管理（キュー追加/却下） |
-| YouTube Panel | YouTube Live Chat API の接続設定 |
-| Visual Bridge | 外部ビジュアルアプリへのイベント転送設定 |
-| Event Log | 全イベントの生ログ表示 |
-
-#### REST API
-
-Stream Serverは以下のREST APIを提供します（デフォルト: `http://localhost:3000`）。
+`packages/stream-ui` は配信表示用のReact UIです。Stream ServerのWebSocketを購読し、AI発話を字幕・TTSキューに流します。
 
 ```bash
-# ステータス確認
-curl http://localhost:3000/api/status
-
-# ゲーム一覧
-curl http://localhost:3000/api/games
-
-# 配信開始（multiモード）
-curl -X POST http://localhost:3000/api/stream/start \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"multi"}'
-
-# 配信停止
-curl -X POST http://localhost:3000/api/stream/stop
-
-# AIにメッセージ送信
-curl -X POST http://localhost:3000/api/admin/message \
-  -H "Content-Type: application/json" \
-  -d '{"text":"次は角を狙ってみて"}'
-
-# コメント追加（手動）
-curl -X POST http://localhost:3000/api/comments/add \
-  -H "Content-Type: application/json" \
-  -d '{"authorName":"Taro","text":"オセロ強い!","platform":"manual"}'
+npm run stream:dev
 ```
 
-#### WebSocket
+- Stream UI: `http://localhost:5174`
+- WebSocket接続先: `ws://localhost:3000/ws/admin`
+- VOICEVOXプロキシ: Vite上の `/voicevox` から `http://127.0.0.1:50021` へ転送
+- 実装上のデフォルトVOICEVOX URL: `http://127.0.0.1:10101`
 
-WebSocket接続先: `ws://localhost:3000/ws/admin`
+AIエージェントのプレイプロンプトは各手の前に `GET /api/tts/wait` を呼ぶようになっています。Stream UIがWebSocketで `tts:status` を送ることで、ゲーム操作が音声読み上げ完了を待てる構成です。
 
-接続時にフルステートスナップショットが送信され、以降はリアルタイムでイベントが配信されます。管理コマンド（start/stop/skip/message等）もWebSocket経由で送信可能です。
-
-### 手動プレイ（ブラウザで確認）
+### 手動でゲームを確認
 
 ```bash
-# ゲーム一覧を開く
-cd samples && python3 -m http.server 8080
-open http://localhost:8080
-
-# 個別ゲームを開く
-cd games/othello && python3 -m http.server 8080
+cd games
+python3 -m http.server 8080
 open http://localhost:8080
 ```
 
-### agent-browser で対話的にプレイ
+個別ゲームだけを確認する場合:
 
 ```bash
-# サーバー起動
-cd samples && python3 -m http.server 8888 &
+cd games/othello
+python3 -m http.server 8080
+open http://localhost:8080
+```
 
-# ゲームを開く（配信用に --headed）
-agent-browser --headed open http://127.0.0.1:8888/othello/
+### agent-browserで操作
 
-# 操作例
+```bash
+cd games
+python3 -m http.server 8888
+agent-browser --headed open http://127.0.0.1:8888/othello/index.html
 agent-browser eval "game.handleCellClick(2, 3)"
-agent-browser eval "game.getValidMoves(1)"
-agent-browser snapshot -i
+agent-browser eval "JSON.stringify(game.getValidMoves(1))"
+agent-browser screenshot logs/manual.png
 agent-browser close
 ```
 
-## ゲームの共通設計
+オーケストレーター実行時はブラウザを共有するため、エージェントプロンプトでは `agent-browser close` を禁止しています。
 
-### ファイル構成
+## アーキテクチャ
 
-各ゲームは `index.html` + `script.js` + `style.css` + `README.md` の構成です（カードバトルはモジュール分割あり）。
+### スタンドアロンの流れ
 
-### 共通API
+1. `src/index.ts` がCLI引数を解析し、LLM設定を構築します。
+2. `src/server.ts` がOpenCodeサーバーを `127.0.0.1:4096` で起動、または既存サーバーへ接続します。
+3. `GameOrchestrator` が `games/` ルートでPython HTTPサーバーを `:8888` に起動します。
+4. `BrowserManager` が `agent-browser --headed` のデーモンを検出または起動します。
+5. `SessionManager` がOpenCodeセッションを作成し、`src/prompts/play-game.ts` の実況プレイ用プロンプトを送信します。
+6. `EventMonitor` がOpenCodeイベントを監視し、AI発話・推論・ツール実行・エラーをログに流します。
+7. ゲーム終了後、ブラウザはロビーへ戻り、ログとスクリーンショットが `logs/` に残ります。
 
-すべてのゲームはグローバル変数 `game` でインスタンスを公開しています。
+### 配信プラットフォームの流れ
 
-```javascript
-// セルクリック系（オセロ、五目並べ）
-game.handleCellClick(row, col)
-game.getValidMoves(player)
-game.init()
+1. `--admin` で `EventHub`, `StreamManager`, `StreamServer` を初期化します。
+2. Admin UIまたはREST/WebSocketから `stream:start` を送ります。
+3. `StreamManager` が `idle` / `starting` / `playing` / `transitioning` / `paused` / `stopped` の状態を管理します。
+4. `GameOrchestrator` がゲームを実行し、`EventMonitor` がイベントを `EventHub` へ publish します。
+5. `WSHandler` が管理UIと視聴者UIへ状態・発話・コメント・ゲームイベントを配信します。
+6. コメント連携や管理者メッセージは、アクティブなOpenCodeセッションへ追加入力として注入されます。
+7. `VisualBridge` はAI発話・推論・ツール実行・ゲーム状態を外部HTTPエンドポイントへバッチPOSTします。
 
-// 移動系（倉庫番）
-game.move(direction)  // 'up', 'down', 'left', 'right'
-game.undo()
+### 主要ポート
 
-// カード系（カードバトル）
-game.playCard(cardIndex)
-game.sacrificeCard(cardIndex)
-game.getGameState()
-game.getValidMoves()
+| 用途 | デフォルト | 変更方法 |
+|---|---:|---|
+| OpenCode Server | 4096 | `src/config.ts` |
+| ゲームHTTPサーバー | 8888 | `src/config.ts` |
+| Stream Server / REST / WebSocket | 3000 | `--admin-port` または `STREAM_PORT` |
+| Admin UI dev server | 5173 | `packages/admin-ui/vite.config.ts` |
+| Stream UI dev server | 5174 | `packages/stream-ui/vite.config.ts` |
+| VOICEVOX Engine例 | 50021 / 10101 | Stream UI設定・プロキシ設定 |
+| わんコメ | 11180 | 接続設定 |
+
+## プロジェクト構成
+
+```text
+ai-agent-game-streamer/
+├── src/
+│   ├── index.ts                  # CLIエントリーポイント
+│   ├── game-orchestrator.ts      # ゲーム進行・ループ・pause/skip/stop制御
+│   ├── session-manager.ts        # OpenCodeセッションと追加入力
+│   ├── event-monitor.ts          # OpenCodeイベント監視
+│   ├── server.ts                 # OpenCodeサーバー起動/接続
+│   ├── config.ts                 # ポート、プロバイダー、モデル、reasoning設定
+│   ├── prompts/play-game.ts      # AI VTuber「ニケ」のプレイプロンプト
+│   ├── games/game-registry.ts    # ゲームメタデータ
+│   ├── stream/                   # 配信プラットフォーム層
+│   └── utils/                    # ログ、プロセス、ブラウザ管理
+├── packages/
+│   ├── admin-ui/                 # 管理用React UI
+│   ├── stream-ui/                # 視聴者向け表示/TTS UI
+│   └── shared/                   # 共有型・共有コード
+├── games/                        # ブラウザゲーム集
+├── .agents/skills/               # ローカルスキル
+├── opencode.json                 # OpenCodeベース設定
+├── logs/                         # 実行ログ・スクリーンショット
+└── dist/                         # TypeScriptビルド出力
 ```
 
-### 画面設計
+## REST API
 
-- 解像度: 1280x720（16:9）を基準に最適化
-- レイアウト: ボード左 + 情報パネル右の横並び配置
-- セルサイズ基準: 8x8→50px, 15x15→35px, 19x19→30px
+Stream Serverはデフォルトで `http://localhost:3000` にREST APIを公開します。
 
-## スキルシステム
+| メソッド | パス | 説明 |
+|---|---|---|
+| `GET` | `/api/status` | 現在の配信状態 |
+| `GET` | `/api/games` | ゲーム一覧 |
+| `GET` | `/api/comments` | コメント一覧 |
+| `GET` | `/api/activities?offset=0&limit=50` | AI活動ログ |
+| `GET` | `/api/browser/status` | ブラウザ状態 |
+| `GET` | `/api/llm/providers` | 利用可能なプロバイダーとAPIキー有無 |
+| `GET` | `/api/llm/config` | 現在/保留中のLLM設定 |
+| `GET` | `/api/tts/wait` | TTS読み上げ完了待ち |
+| `POST` | `/api/stream/start` | 配信開始 |
+| `POST` | `/api/stream/stop` | 配信停止 |
+| `POST` | `/api/stream/pause` | 一時停止 |
+| `POST` | `/api/stream/resume` | 再開 |
+| `POST` | `/api/game/skip` | 現在のゲームをスキップ |
+| `POST` | `/api/admin/message` | AIへ管理者メッセージを送信 |
+| `POST` | `/api/comments/add` | 手動コメント追加 |
+| `POST` | `/api/comments/:id/queue` | コメントをAI回答キューへ投入 |
+| `POST` | `/api/comments/:id/dismiss` | コメントを却下 |
+| `POST` | `/api/comments/youtube/connect` | YouTube Live Chatへ接続 |
+| `POST` | `/api/comments/onecomme/connect` | わんコメへ接続 |
+| `POST` | `/api/browser/launch` | `agent-browser` headedデーモンを起動 |
+| `POST` | `/api/browser/launch-cdp` | 既存ChromeへCDP接続 |
+| `POST` | `/api/browser/close` | 起動したブラウザを閉じる |
+| `POST` | `/api/visual/configure` | Visual Bridge設定 |
+| `POST` | `/api/llm/config` | LLM設定を変更しOpenCodeを再起動 |
 
-### agent-browser
-
-Playwright ベースのブラウザ自動操作ツールです。
+例:
 
 ```bash
-agent-browser open <url>           # ページを開く
-agent-browser snapshot -i          # インタラクティブ要素を取得
-agent-browser click @e1            # 要素をクリック
-agent-browser fill @e2 "text"      # テキスト入力
-agent-browser eval "expression"    # JavaScript を実行
-agent-browser screenshot file.png  # スクリーンショット保存
-agent-browser close                # ブラウザを閉じる
+curl http://localhost:3000/api/status
+curl -X POST http://localhost:3000/api/stream/start \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"multi","selectedGames":["othello","gomoku"],"pauseBetweenGames":5000}'
+curl -X POST http://localhost:3000/api/admin/message \
+  -H "Content-Type: application/json" \
+  -d '{"text":"次は角を狙ってみて"}'
 ```
 
-### create-game
+## WebSocket
 
-HTML/CSS/JavaScript でボードゲームを新規作成するスキルです。テンプレートとAI実装パターン（位置評価、minimax、パターンマッチング）が用意されています。
+接続先は `ws://localhost:3000/ws/admin` です。
 
-### play-game
+接続時に `state:full` が送信され、その後は `state:update`, `agent:activity`, `game:event`, `comment:updated`, `llm:state` などが配信されます。クライアントからは `stream:start`, `stream:stop`, `stream:pause`, `stream:resume`, `game:skip`, `admin:message`, `comment:queue`, `comment:dismiss`, `browser:launch`, `browser:launch-cdp`, `browser:close`, `tts:status` を送れます。
 
-agent-browser を使ってゲームを自動プレイするスキルです。配信を想定し `--headed` モードで操作を可視化します。ソースコードの直接読み取りは禁止で、各ゲームの `README.md` のみ参照可能です。
+## コメント連携
 
-### generate-image / generate-transparent-image
+### YouTube Live Chat
 
-Gemini API ベースの画像生成スキルです。`generate-transparent-image` は PhotoRoom API と組み合わせて背景透過画像を生成します。
-
-## YouTube コメント連携
-
-YouTube Live Chat API を使って、配信中の視聴者コメントをリアルタイムで取得・管理できます。
-
-### 設定
-
-1. [Google Cloud Console](https://console.cloud.google.com/) で YouTube Data API v3 を有効化
-2. APIキーを環境変数 `YOUTUBE_API_KEY` に設定
-3. Admin UI の YouTube Panel で Live Chat ID または Video ID を入力して接続
-
-### コメント管理フロー
-
-1. YouTube Live Chat からコメントを自動取得（APIの `pollingIntervalMillis` に従ってポーリング）
-2. Admin UI の Comment Panel にコメントが表示される
-3. 管理者が「Queue」ボタンでAIに回答させるキューに入れる
-4. ゲーム間の休憩時間にキューイングされたコメントがAIに送信される
-5. 「Dismiss」ボタンでコメントを却下することも可能
-
-### APIクォータ
-
-YouTube Data API v3 の日次クォータ上限は10,000ユニットです。`liveChatMessages.list` は1回あたり5ユニット消費します。APIが返す推奨ポーリング間隔に従うことでクォータ消費を最適化しています。
-
-## Visual Bridge API
-
-外部のビジュアルアプリケーション（Unityアプリ、OBSオーバーレイ等）にAIの状態をリアルタイムで転送する仕組みです。
-
-### 設定方法
+`YOUTUBE_API_KEY` を設定し、Admin UIまたはREST APIからLive Chat IDまたはVideo IDを指定して接続します。実装はYouTube Data API v3の `liveChat/messages` と `videos` を使います。
 
 ```bash
-# CLI引数で指定
+curl -X POST http://localhost:3000/api/comments/youtube/connect \
+  -H "Content-Type: application/json" \
+  -d '{"videoId":"YOUR_VIDEO_ID"}'
+```
+
+### わんコメ
+
+わんコメがローカルで起動している状態で、既定では `127.0.0.1:11180` の `/api/info` と `/sub?p=comments` に接続します。
+
+```bash
+curl -X POST http://localhost:3000/api/comments/onecomme/connect \
+  -H "Content-Type: application/json" \
+  -d '{"port":11180}'
+```
+
+## Visual Bridge
+
+外部アプリにイベントをHTTP POSTで送るためのブリッジです。Unity、OBSオーバーレイ、別の演出アプリなどが受信側になります。
+
+```bash
 npm run stream:managed -- --visual-endpoint=http://localhost:5000/api/visual --visual-interval=500
-
-# または Admin UI の Visual Bridge パネルから設定
 ```
 
-### 送信スキーマ
-
-設定されたエンドポイントに以下のJSONがHTTP POSTで送信されます（バッチ送信）。
+送信形式:
 
 ```json
 {
   "events": [
     {
-      "type": "thought | speech | action | game_state",
+      "type": "thought",
       "data": {
-        "text": "角を取れるので...",
-        "emotion": "thinking | happy | frustrated | excited | neutral"
+        "text": "ここは慎重にいきたいですね",
+        "emotion": "thinking"
       },
       "timestamp": 1706900000000
     }
@@ -471,59 +306,72 @@ npm run stream:managed -- --visual-endpoint=http://localhost:5000/api/visual --v
 }
 ```
 
-| イベントタイプ | 元データ | 説明 |
-|--------------|---------|------|
-| `thought` | AIのreasoning | 内部推論（拡張思考） |
-| `speech` | AIのtext出力 | 視聴者向けコメンタリー |
-| `action` | ツール実行 | agent-browser操作等 |
-| `game_state` | ゲームイベント | ゲーム開始/完了等 |
+イベントタイプは `thought`, `speech`, `action`, `game_state` です。感情はキーワードベースで `thinking`, `happy`, `frustrated`, `excited`, `neutral` に分類されます。
 
-感情検出はキーワードベースのヒューリスティック（V1）です。送信はfire-and-forget方式で、送信失敗がゲーム進行に影響することはありません。
+## ゲーム実装の共通ルール
+
+- 各ゲームはブラウザグローバルの `game` でインスタンスを公開します。
+- 基本構成は `index.html`, `script.js`, `style.css`, `README.md` です。
+- AIプレイ時はソースを読ませず、各ゲームの `README.md` をAPI仕様として使います。
+- 画面は主に1280x720を想定します。
+- オーケストレーターは `games/` ルートをHTTP公開するため、ゲーム内リンクやアセットはその前提で確認してください。
+
+新規ゲームを追加する場合は `games/<id>/` を作成し、`src/types.ts` の `GameId` と `src/games/game-registry.ts` に登録してください。
+
+## スキル
+
+`.agents/skills/` には以下があります。
+
+| スキル | 役割 |
+|---|---|
+| `agent-browser` | Playwrightベースのブラウザ自動操作 |
+| `create-board-game` | HTML/CSS/JSのボードゲーム作成 |
+| `play-game` | `agent-browser` を使ったゲーム自動プレイ |
+| `verify-game` | ゲームを実際に操作してクリア可能性や不具合を検証 |
+| `generate-image` | Gemini APIで画像生成 |
+| `generate-transparent-image` | 画像生成後に背景透過PNGを作成 |
+
+このリポジトリでゲームを自動プレイする場合は、原則として `play-game` スキルを使います。
 
 ## ログ
 
-ゲームセッションのログは `logs/` ディレクトリに自動保存されます。
+実行ログとスクリーンショットは `logs/` に保存されます。
 
-- ログファイル: `logs/YYYYMMDD-HHMMSS_GameName.log`
+- セッションログ: `logs/YYYYMMDD-HHMMSS_GameName.log`
 - スクリーンショット: `logs/YYYYMMDD-HHMMSS_name.png`
+
+`GameLogger` は標準出力とファイルの両方へ主要イベントを書き出します。
 
 ## 開発
 
-### npm scripts
-
 ```bash
-# オーケストレーター
-npm run dev              # 開発実行（tsx）
-npm run play             # ランダムなゲームを1回プレイ
-npm run stream           # ストリーミングループ（連続プレイ）
-npm run build            # TypeScriptコンパイル → dist/
-
-# 配信プラットフォーム
-npm run stream:managed   # --admin --loop で配信モード起動
-npm run admin:dev        # Admin UI 開発サーバー（Vite）
-npm run admin:build      # Admin UI ビルド
-
-# テスト
-npm test                 # ユニットテスト実行
-```
-
-### テスト
-
-`node:test` + `node:assert` を使用したユニットテストが `src/stream/__tests__/` にあります。
-
-```bash
+npm run dev
+npm run play
+npm run stream
+npm run stream:managed
+npm run stream:managed:debug
+npm run build
 npm test
+npm run admin:dev
+npm run admin:build
+npm run stream:dev
+npm run stream:build
+npm run shared:build
+npm run ui:build
 ```
 
-テスト対象: EventHub（pub/sub、バッファ管理）、StreamManager（状態遷移）、WSHandler（WebSocket通信）
+テストは `node:test` + `node:assert` で、主に `src/stream/__tests__/` のEventHub、StreamManager、WSHandlerを検証します。
 
-## OpenCode 設定
+## OpenCode設定
 
-`opencode.json` でOpenCode SDKの設定を管理しています。
+`opencode.json` はOpenCodeのベース設定です。
 
 - サーバー: `127.0.0.1:4096`
 - デフォルトエージェント: `game-streamer`
-- パーミッション: `agent-browser`, `python3 -m http.server`, `lsof`, `kill` 等のみ許可。`edit`, `write`, `webfetch` は拒否
+- 許可される主なbash: `agent-browser`, `python3 -m http.server`, `lsof`, `kill`, `sleep`, `ls`
+- `edit`, `write`, `webfetch` は拒否
+
+通常起動では `src/config.ts` から生成したプロバイダー設定をOpenCode SDKへ渡します。`--connect` を使う場合は、既に起動しているOpenCodeサーバー側の設定が使われます。
 
 ## ライセンス
 
