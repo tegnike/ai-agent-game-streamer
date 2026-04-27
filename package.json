@@ -14,18 +14,17 @@
     "stream:managed": "tsx src/index.ts --admin --loop",
     "stream:managed:debug": "tsx src/index.ts --admin --loop --debug",
     "build": "tsc",
-    "test": "tsx --test src/stream/__tests__/*.test.ts",
+    "test": "tsx --test \"src/**/__tests__/*.test.ts\"",
     "admin:dev": "npm run dev -w @agent-game/admin-ui",
     "admin:build": "npm run build -w @agent-game/admin-ui",
     "stream:dev": "npm run dev -w @agent-game/stream-ui",
     "stream:build": "npm run build -w @agent-game/stream-ui",
-    "narration:relay": "tsx src/narration/index.ts",
-    "narration:dev": "npm run dev -w @agent-game/narration-ui",
-    "narration:build": "npm run build -w @agent-game/narration-ui",
     "shared:build": "npm run build -w @agent-game/shared",
-    "ui:build": "npm run shared:build && npm run admin:build && npm run stream:build && npm run narration:build"
+    "ui:build": "npm run shared:build && npm run admin:build && npm run stream:build"
   },
   "dependencies": {
+    "@narration-runtime/client": "file:../narration-runtime/packages/client",
+    "@narration-runtime/protocol": "file:../narration-runtime/packages/protocol",
     "@opencode-ai/sdk": "latest",
     "@playwright/test": "^1.58.1",
     "dotenv": "^17.2.4",

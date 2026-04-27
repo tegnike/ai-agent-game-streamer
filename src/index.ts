@@ -3,7 +3,7 @@ import { startServer, connectToServer } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
-import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG, NARRATION_SERVER_PORT } from "./config.js";
+import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG, DEFAULT_NARRATION_URL } from "./config.js";
 import type { GameId } from "./types.js";
 import type { ReasoningEffort } from "./stream/types.js";
 import { EventHub } from "./stream/event-hub.js";
@@ -11,13 +11,23 @@ import { StreamManager } from "./stream/stream-manager.js";
 import { StreamServer } from "./stream/stream-server.js";
 import { BrowserManager } from "./utils/browser-manager.js";
 import { LLMConfigManager } from "./stream/llm-config-manager.js";
-import { NarrationRelayServer } from "./narration/narration-relay-server.js";
-import { NarrationEventBridge } from "./narration/narration-event-bridge.js";
+import { NarrationEventBridge, type NarrationWaitMode } from "./narration/narration-event-bridge.js";
+import { NarrationClientAdapter } from "./narration/narration-client-adapter.js";
 import type { OpencodeClient } from "@opencode-ai/sdk";
 
 function parseArg(args: string[], prefix: string): string | undefined {
   const arg = args.find((a) => a.startsWith(prefix));
-  return arg?.split("=")[1];
+  return arg?.slice(prefix.length);
+}
+
+function parseNarrationWaitMode(value: string | undefined): NarrationWaitMode {
+  if (value === "busy" || value === "completion" || value === "none") {
+    return value;
+  }
+  if (value) {
+    logger.warn(`Invalid NARRATION_WAIT_MODE: ${value}; using busy`);
+  }
+  return "busy";
 }
 
 async function main() {
@@ -36,7 +46,8 @@ async function main() {
   const modelName = parseArg(args, "--model=");
   const reasoningEffort = parseArg(args, "--reasoning-effort=");
   const adminPortArg = parseArg(args, "--admin-port=");
-  const narrationPortArg = parseArg(args, "--narration-port=");
+  const narrationUrlArg = parseArg(args, "--narration-url=");
+  const narrationWaitModeArg = parseArg(args, "--narration-wait-mode=");
   const visualEndpoint = parseArg(args, "--visual-endpoint=");
   const visualInterval = parseArg(args, "--visual-interval=");
 
@@ -71,7 +82,7 @@ async function main() {
   let eventHub: EventHub | undefined;
   let streamManager: StreamManager | undefined;
   let streamServer: StreamServer | undefined;
-  let narrationRelay: NarrationRelayServer | undefined;
+  let narrationClient: NarrationClientAdapter | undefined;
   let narrationBridge: NarrationEventBridge | undefined;
 
   if (adminMode) {
@@ -235,13 +246,25 @@ async function main() {
 
     await streamServer.start();
 
-    const narrationPort = narrationPortArg
-      ? parseInt(narrationPortArg, 10)
-      : parseInt(process.env.NARRATION_PORT ?? "", 10) || NARRATION_SERVER_PORT;
-    narrationRelay = new NarrationRelayServer(narrationPort);
-    await narrationRelay.start();
-    narrationBridge = new NarrationEventBridge(eventHub, narrationRelay);
-    narrationBridge.start();
+    const narrationEnabled =
+      !args.includes("--no-narration") &&
+      process.env.NARRATION_ENABLED?.toLowerCase() !== "false";
+    if (narrationEnabled) {
+      const narrationUrl = narrationUrlArg ?? process.env.NARRATION_URL ?? DEFAULT_NARRATION_URL;
+      const narrationWaitMode = parseNarrationWaitMode(
+        narrationWaitModeArg ?? process.env.NARRATION_WAIT_MODE,
+      );
+      narrationClient = new NarrationClientAdapter({
+        url: narrationUrl,
+        clientName: "ai-agent-game-streamer",
+      });
+      await narrationClient.connect();
+      narrationBridge = new NarrationEventBridge(eventHub, narrationClient, narrationWaitMode);
+      narrationBridge.start();
+      logger.info(`Narration producer enabled: ${narrationUrl} (waitMode=${narrationWaitMode})`);
+    } else {
+      logger.info("Narration producer disabled");
+    }
 
     const orchestrator = new GameOrchestrator(clientRef.current, eventHub, browserManager);
     orchestrator.setStreamManager(streamManager);
@@ -266,7 +289,7 @@ async function main() {
       streamManager!.transition("stopped");
       orchestrator.getEventMonitor().stopMonitoring();
       narrationBridge?.stop();
-      await narrationRelay?.stop();
+      await narrationClient?.close();
       await browserManager.close();
       await orchestrator.getProcessManager().stopGameServer();
       await streamServer!.stop();

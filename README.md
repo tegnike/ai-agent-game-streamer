@@ -120,20 +120,35 @@ npm run stream:dev
 
 AIエージェントのプレイプロンプトは各手の前に `GET /api/tts/wait` を呼ぶようになっています。Stream UIがWebSocketで `tts:status` を送ることで、ゲーム操作が音声読み上げ完了を待てる構成です。
 
-### 独立ナレーションUI
+### 外部ナレーションruntime
 
-AIプレイシステムと疎結合にするための独立UIもあります。Narration Relayは単独起動、または `npm run stream:managed` 起動時に `ws://localhost:3010/ws/narration` で立ち上がり、UIは `narration:say` を受け取ってTTS再生後に `narration:completed` を返します。
+ナレーション表示、TTS再生、WebSocket relayは外部の `narration-runtime` を標準モデルとして使います。`ai-agent-game-streamer` はproducerとして外部relayへ `narration:say` を送信し、relayやUIが未起動でもゲーム進行を継続します。`npm run stream:managed` はrelayを同一プロセス内で起動しません。
 
 ```bash
-npm run narration:relay
-npm run narration:dev
+# narration-runtime repo
+npm run relay
+npm run ui:dev
+
+# ai-agent-game-streamer repo
+npm run stream:managed -- --narration-url=ws://localhost:3010/ws/narration
 ```
 
 - Narration UI: `http://localhost:5175`
 - Narration WebSocket: `ws://localhost:3010/ws/narration`
 - Status API: `http://localhost:3010/api/narration/status`
 
-外部システムは最初に `{"type":"narration:hello","role":"producer"}` を送り、その後 `narration:say` を送信します。UIが接続していない場合は `narration:skipped` が返り、ゲーム進行はブロックされません。
+`NARRATION_URL` または `--narration-url=` でrelay URLを指定できます。既定値は `ws://localhost:3010/ws/narration` です。ナレーション送信を止める場合は `--no-narration` を使います。`NARRATION_WAIT_MODE` は `/api/tts/wait` とナレーション完了待ちの連携方法を切り替えます。
+
+| 設定 | 値 | 説明 |
+|---|---|---|
+| `NARRATION_URL` | WebSocket URL | 外部relay接続先 |
+| `--narration-url=<url>` | WebSocket URL | CLIからrelay接続先を上書き |
+| `NARRATION_ENABLED=false` | `false` | ナレーション送信を無効化 |
+| `--no-narration` | なし | ナレーション送信を無効化 |
+| `NARRATION_WAIT_MODE` | `busy`, `completion`, `none` | `busy` はpending状態をTTS busyへ反映、`completion` は発話完了を待って次を送信、`none` はゲーム進行へ反映しません |
+| `--narration-wait-mode=<mode>` | `busy`, `completion`, `none` | CLIからwait modeを上書き |
+
+外部システムは最初に `{"type":"narration:hello","role":"producer"}` を送り、その後 `narration:say` を送信します。UIが接続していない場合は `narration:skipped` が返り、relayへ接続できない場合もproducer側はskip相当として扱い、ゲーム進行はブロックされません。
 
 詳細な構成・プロトコル・pokechamp連携は [docs/narration-runtime-ui.md](docs/narration-runtime-ui.md) を参照してください。
 
@@ -196,10 +211,10 @@ agent-browser close
 | OpenCode Server | 4096 | `src/config.ts` |
 | ゲームHTTPサーバー | 8888 | `src/config.ts` |
 | Stream Server / REST / WebSocket | 3000 | `--admin-port` または `STREAM_PORT` |
-| Narration Relay | 3010 | `--narration-port` または `NARRATION_PORT` |
+| External Narration Relay | 3010 | `--narration-url` または `NARRATION_URL` |
 | Admin UI dev server | 5173 | `packages/admin-ui/vite.config.ts` |
 | Stream UI dev server | 5174 | `packages/stream-ui/vite.config.ts` |
-| Narration UI dev server | 5175 | `packages/narration-ui/vite.config.ts` |
+| Narration UI dev server | 5175 | `narration-runtime/packages/ui/vite.config.ts` |
 | VOICEVOX Engine例 | 50021 / 10101 | Stream UI設定・プロキシ設定 |
 | わんコメ | 11180 | 接続設定 |
 

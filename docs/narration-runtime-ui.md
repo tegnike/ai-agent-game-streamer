@@ -1,12 +1,12 @@
 # Narration Runtime UI
 
-AIプレイシステムからナレーション表示・TTS再生を切り離すために追加した、独立したWebSocketナレーションUIの設計メモです。
+AIプレイシステムからナレーション表示・TTS再生・WebSocket relayを切り離し、外部 `narration-runtime` として運用するための設計メモです。
 
 ## 目的
 
-これまでの `packages/stream-ui` は `ai-agent-game-streamer` の配信状態管理に強く結びついていました。今回追加した `packages/narration-ui` は、AIプレイシステムとはWebSocketだけで接続し、受け取ったテキストをTTS再生して、再生完了を送信元へ通知します。
+これまでの `packages/stream-ui` は `ai-agent-game-streamer` の配信状態管理に強く結びついていました。標準モデルでは、ナレーションrelayとUIを外部 `narration-runtime` で起動し、`ai-agent-game-streamer` はWebSocket producerとして発話を送信します。
 
-これにより、`ai-agent-game-streamer` のOpenCode/Codexエージェントだけでなく、`pokechamp` のPythonベースのナレーターシステムからも同じUIを使えます。
+これにより、`ai-agent-game-streamer` のOpenCode/Codexエージェントだけでなく、`pokechamp` のPythonベースのナレーターシステムからも同じrelay/UIを使えます。relay未起動、UI未接続、TTS失敗時でもproducer側はskipまたはfailedとして扱い、ゲーム進行を致命的に止めません。
 
 ## 構成
 
@@ -30,31 +30,34 @@ Narration UI
   └─ 再生完了通知
 ```
 
-## 追加ファイル
+## リポジトリ分担
 
-| ファイル | 役割 |
+標準構成では、relay、UI、protocol型、producer clientを `narration-runtime` 側で管理します。
+
+| リポジトリ | 役割 |
 |---|---|
-| `src/narration/narration-relay-server.ts` | producer/UI/observerを中継するWebSocket relay |
-| `src/narration/index.ts` | relay単独起動CLI |
-| `src/narration/narration-event-bridge.ts` | `ai-agent-game-streamer` の `EventHub` からAI発話をrelayへ流すbridge |
-| `src/narration/types.ts` | relayプロトコル型 |
-| `src/narration/sentence-splitter.ts` | AI発話デルタを文単位に分割 |
-| `packages/narration-ui/` | 独立ナレーションUI |
+| `narration-runtime/packages/protocol` | WebSocket message types |
+| `narration-runtime/packages/relay` | producer/UI/observerを中継するWebSocket relay |
+| `narration-runtime/packages/ui` | TTS再生、字幕、キャラクター表示 |
+| `narration-runtime/packages/client` | producer向けTypeScript client |
+| `ai-agent-game-streamer/src/narration/` | `EventHub` の `agent:text` を文単位の `narration:say` に変換するadapter |
+
+このリポジトリにはproducer adapterと文分割処理だけを残し、旧relay/UI実装とnpm scriptは外部 `narration-runtime` 側へ移します。
 
 ## 起動方法
 
-relayだけを使う場合:
+標準モデルでは、`narration-runtime` を別プロセスで先に起動します。
 
 ```bash
-npm run narration:relay
-npm run narration:dev
+# narration-runtime repo
+npm run relay
+npm run ui:dev
 ```
 
-`ai-agent-game-streamer` の管理配信と一緒に使う場合:
+`ai-agent-game-streamer` は外部relayへ接続するproducerとして起動します。
 
 ```bash
-npm run stream:managed
-npm run narration:dev
+npm run stream:managed -- --narration-url=ws://localhost:3010/ws/narration
 ```
 
 ポート:
@@ -65,7 +68,26 @@ npm run narration:dev
 | Narration UI dev server | `5175` |
 | VOICEVOX Engine | `10101` |
 
-relayのポートは `--port=<port>` または `NARRATION_PORT` で変更できます。`stream:managed` 側では `--narration-port=<port>` または `NARRATION_PORT` を使います。
+`ai-agent-game-streamer` 側ではrelayのポートを直接管理しません。接続先は `NARRATION_URL` または `--narration-url=` で指定します。既定値は `ws://localhost:3010/ws/narration` です。ナレーションを送信しない場合は `--no-narration` を指定します。
+
+## ai-agent-game-streamer設定
+
+| 設定 | デフォルト | 説明 |
+|---|---|---|
+| `NARRATION_URL` | `ws://localhost:3010/ws/narration` | 外部relay WebSocket URL |
+| `--narration-url=<url>` | なし | CLIからrelay URLを上書き |
+| `NARRATION_ENABLED` | `true` | `false` の場合はナレーション送信を無効化 |
+| `--no-narration` | なし | ナレーション送信を無効化 |
+| `NARRATION_WAIT_MODE` | `busy` | TTS待機の扱い。`busy`, `completion`, `none` |
+| `--narration-wait-mode=<mode>` | なし | CLIからwait modeを上書き |
+
+`NARRATION_WAIT_MODE` の意味:
+
+| 値 | 挙動 |
+|---|---|
+| `busy` | clientのpending有無を `EventHub.setTTSBusy()` へ反映し、既存の `/api/tts/wait` と連携する |
+| `completion` | bridge内で `say()` 完了を待ってから次の発話を送る |
+| `none` | TTS完了をゲーム進行へ反映しない |
 
 ## WebSocketプロトコル
 
@@ -125,14 +147,14 @@ UIが接続していない場合、relayはproducerへ `narration:skipped` を�
 
 ## ai-agent-game-streamer連携
 
-`stream:managed` 起動時に `NarrationRelayServer` と `NarrationEventBridge` も初期化します。`EventMonitor` が `agent:text` を `EventHub` に流すと、bridgeが文単位に分割して `narration:say` としてrelayへ送ります。
+`stream:managed` はrelay serverを同一プロセス内で起動しません。`EventMonitor` が `agent:text` を `EventHub` に流すと、bridge/adapterが文単位に分割して外部relayへ `narration:say` として送ります。外部relayへ接続できない場合はskip相当として扱い、配信とゲーム進行は継続します。
 
 `/api/tts/wait` との関係:
 
 - 既存の `stream-ui` は `tts:status` を `StreamServer` に返します。
-- 新しい `narration-ui` は `narration:completed` をrelayへ返します。
-- `NarrationEventBridge` はrelayのbusy状態を `EventHub.setTTSBusy()` に反映します。
-- そのため、既存の `/api/tts/wait` は新UI側の再生完了も待てます。
+- 外部 `narration-runtime` のUIは `narration:completed`、`narration:failed`、`narration:skipped` をrelayへ返します。
+- `NARRATION_WAIT_MODE=busy` ではclientのpending状態を `EventHub.setTTSBusy()` に反映します。
+- そのため、既存の `/api/tts/wait` は外部UI側の再生中もbusyとして待てます。
 
 ## pokechamp連携
 
@@ -141,9 +163,9 @@ UIが接続していない場合、relayはproducerへ `narration:skipped` を�
 利用例:
 
 ```bash
-# ai-agent-game-streamer 側
-npm run narration:relay
-npm run narration:dev
+# narration-runtime 側
+npm run relay
+npm run ui:dev
 
 # pokechamp 側
 uv run python narrator/run_narrator_battle.py \
@@ -152,17 +174,17 @@ uv run python narrator/run_narrator_battle.py \
   --narration_ui
 ```
 
-このモードでは、pokechamp側ではVOICEVOXのWAVを生成せず、UI側がTTS生成・再生を担当します。`NarratorPlayer` は `narration:completed` を待ってから次の行動へ進みます。
+このモードでは、pokechamp側ではVOICEVOXのWAVを生成せず、外部 `narration-runtime` のUI側がTTS生成・再生を担当します。`NarratorPlayer` は `narration:completed` または `narration:skipped` などの完了statusを待ってから次の行動へ進みます。
 
 ## キャラUI
 
-現状の `packages/narration-ui` は、既存 `stream-ui` のニケちゃんPNG差分画像を流用しています。
+`narration-runtime/packages/ui` は、既存 `stream-ui` 由来のニケちゃんPNG差分画像を管理します。
 
 使用場所:
 
-- `packages/narration-ui/src/components/CharacterDisplay.tsx`
-- `packages/narration-ui/src/hooks/useCharacterAnimation.ts`
-- `packages/narration-ui/public/images/nikechan/`
+- `narration-runtime/packages/ui/src/components/CharacterDisplay.tsx`
+- `narration-runtime/packages/ui/src/hooks/useCharacterAnimation.ts`
+- `narration-runtime/packages/ui/public/images/nikechan/`
 
 基本差分:
 
@@ -176,17 +198,19 @@ uv run python narrator/run_narrator_battle.py \
 
 ## 検証
 
-実施済み:
+推奨コマンド:
 
 ```bash
-./node_modules/.bin/tsc
-./node_modules/.bin/tsc -b packages/narration-ui
-./node_modules/.bin/tsx --test src/stream/__tests__/*.test.ts
-python3 -m py_compile narrator/narration_ui_client.py narrator/narrator_player.py narrator/run_narrator_battle.py
+npm run build
+npm test
+# narration-runtime repo
+npm run build
+npm run ui:build
 ```
 
-relayのproducer/UI往復も、`tsx` の小さなスモークテストで `narration:say` から `narration:completed` まで確認済みです。
+relayのproducer/UI往復は、`narration-runtime` 側のスモークテストで `narration:say` から `narration:completed` または `narration:skipped` まで確認します。
 
 未確認:
 
-- Vite dev server / build は、ローカルの既存 `node_modules` にある Rollup native optional dependency のmacOSコード署名エラーで起動できませんでした。依存再インストール後に再確認してください。
+- 外部 `narration-runtime` relayを停止した状態でも `ai-agent-game-streamer` の `stream:managed` が継続すること。
+- UI未接続時に `narration:skipped` でproducer側が継続すること。

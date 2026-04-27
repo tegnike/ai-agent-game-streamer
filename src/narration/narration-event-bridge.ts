@@ -1,11 +1,18 @@
 import type { EventHub } from "../stream/event-hub.js";
 import type { StreamEvent } from "../stream/types.js";
 import { logger } from "../utils/logger.js";
-import type { NarrationRelayServer } from "./narration-relay-server.js";
-import type { NarrationEmotion } from "./types.js";
+import type { NarrationEmotion, NarrationSayInput } from "@narration-runtime/protocol";
 import { extractSentences } from "./sentence-splitter.js";
 
 const CONTROL_TAG_RE = /\[(?:CONTINUE|END_STREAM)\]/g;
+
+export type NarrationWaitMode = "busy" | "completion" | "none";
+
+export interface NarrationProducerClient {
+  say(input: NarrationSayInput): Promise<unknown>;
+  onBusyChange(listener: (busy: boolean) => void): void;
+  offBusyChange(listener: (busy: boolean) => void): void;
+}
 
 function inferEmotion(text: string): NarrationEmotion {
   if (/やった|嬉し|うれし|楽しい|最高|いい展開|良い展開|チャンス|勝て|成功|すごい|わあ/.test(text)) {
@@ -27,10 +34,14 @@ export class NarrationEventBridge {
   private buffer = "";
   private listener: ((event: StreamEvent) => void) | null = null;
   private busyListener: ((busy: boolean) => void) | null = null;
+  private queue = Promise.resolve();
+  private running = false;
+  private completionPending = 0;
 
   constructor(
     private readonly hub: EventHub,
-    private readonly relay: NarrationRelayServer,
+    private readonly client: NarrationProducerClient,
+    private readonly waitMode: NarrationWaitMode = "busy",
   ) {}
 
   start(): void {
@@ -38,11 +49,14 @@ export class NarrationEventBridge {
 
     this.listener = (event) => this.handleEvent(event);
     this.hub.onAny(this.listener);
+    this.running = true;
 
-    this.busyListener = (busy) => {
-      this.hub.setTTSBusy(busy);
-    };
-    this.relay.onBusyChange(this.busyListener);
+    if (this.waitMode === "busy") {
+      this.busyListener = (busy) => {
+        this.hub.setTTSBusy(busy);
+      };
+      this.client.onBusyChange(this.busyListener);
+    }
     logger.info("Narration event bridge started");
   }
 
@@ -52,10 +66,13 @@ export class NarrationEventBridge {
       this.listener = null;
     }
     if (this.busyListener) {
-      this.relay.offBusyChange(this.busyListener);
+      this.client.offBusyChange(this.busyListener);
       this.busyListener = null;
     }
     this.buffer = "";
+    this.running = false;
+    this.completionPending = 0;
+    this.hub.setTTSBusy(false);
   }
 
   private handleEvent(event: StreamEvent): void {
@@ -90,12 +107,40 @@ export class NarrationEventBridge {
   }
 
   private publish(text: string, boundary: string): void {
-    this.relay.publishSay({
+    const input: NarrationSayInput = {
       text,
       speaker: "nike",
       emotion: inferEmotion(text),
       interrupt: false,
       metadata: { source: "ai-agent-game-streamer", boundary },
-    });
+    };
+
+    const send = async () => {
+      if (!this.running) return;
+      try {
+        await this.client.say(input);
+      } catch (err) {
+        logger.warn("[Narration] failed to publish narration:", err);
+      }
+    };
+
+    if (this.waitMode === "completion") {
+      this.completionPending++;
+      this.hub.setTTSBusy(true);
+      const sendQueued = async () => {
+        try {
+          await send();
+        } finally {
+          this.completionPending = Math.max(0, this.completionPending - 1);
+          if (this.completionPending === 0) {
+            this.hub.setTTSBusy(false);
+          }
+        }
+      };
+      this.queue = this.queue.then(sendQueued, sendQueued);
+      return;
+    }
+
+    void send();
   }
 }
