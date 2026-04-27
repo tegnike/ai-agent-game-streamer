@@ -20,8 +20,12 @@ export function LLMConfigPanel() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedEffort, setSelectedEffort] = useState<ReasoningEffort | "">("");
   const [apiKey, setApiKey] = useState("");
+  const [customBaseURL, setCustomBaseURL] = useState("");
+  const [customSmallModel, setCustomSmallModel] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCustom = selectedProvider === "custom";
 
   // Fetch providers on mount
   useEffect(() => {
@@ -50,6 +54,10 @@ export function LLMConfigPanel() {
           setSelectedProvider(data.current.provider);
           setSelectedModel(data.current.model);
           setSelectedEffort(data.current.reasoningEffort ?? "");
+          if (data.current.provider === "custom") {
+            setCustomBaseURL(data.current.baseURL ?? "");
+            setCustomSmallModel(data.current.smallModel ?? "");
+          }
         }
       })
       .catch(console.error);
@@ -57,6 +65,7 @@ export function LLMConfigPanel() {
 
   // Update model selection when provider changes
   useEffect(() => {
+    if (isCustom) return; // Custom provider uses free-text model input
     const provider = providers.find((p) => p.id === selectedProvider);
     if (provider && provider.models.length > 0) {
       // Keep current model if it exists in new provider, otherwise use first
@@ -65,7 +74,7 @@ export function LLMConfigPanel() {
         setSelectedModel(provider.models[0].id);
       }
     }
-  }, [selectedProvider, providers, selectedModel]);
+  }, [selectedProvider, providers, selectedModel, isCustom]);
 
   const currentProvider = providers.find((p) => p.id === selectedProvider);
 
@@ -73,23 +82,27 @@ export function LLMConfigPanel() {
   const currentModel = currentProvider?.models.find((m) => m.id === selectedModel);
   const supportedEfforts = currentModel?.reasoningEfforts;
 
+  // Custom provider always shows all reasoning effort options
+  const ALL_EFFORTS: ReasoningEffort[] = ["low", "medium", "high"];
+
   // Reset effort when switching to a model that doesn't support it
   useEffect(() => {
+    if (isCustom) return; // Custom always allows all efforts
     if (!supportedEfforts?.length) {
       setSelectedEffort("");
     } else if (selectedEffort && !supportedEfforts.includes(selectedEffort)) {
-      // Current effort is not supported by the new model, reset
       setSelectedEffort("");
     }
-  }, [selectedModel, supportedEfforts, selectedEffort]);
+  }, [selectedModel, supportedEfforts, selectedEffort, isCustom]);
 
   const effortOptions = useMemo(() => {
-    if (!supportedEfforts?.length) return [];
+    const efforts = isCustom ? ALL_EFFORTS : supportedEfforts;
+    if (!efforts?.length) return [];
     return [
       { value: "" as const, label: "Default" },
-      ...supportedEfforts.map((e) => ({ value: e, label: EFFORT_LABELS[e] })),
+      ...efforts.map((e) => ({ value: e, label: EFFORT_LABELS[e] })),
     ];
-  }, [supportedEfforts]);
+  }, [supportedEfforts, isCustom]);
 
   const handleApply = useCallback(async () => {
     setLoading(true);
@@ -104,6 +117,12 @@ export function LLMConfigPanel() {
       }
       if (selectedEffort) {
         config.reasoningEffort = selectedEffort;
+      }
+      if (isCustom) {
+        config.baseURL = customBaseURL.trim();
+        if (customSmallModel.trim()) {
+          config.smallModel = customSmallModel.trim();
+        }
       }
       const resp = await fetch("/api/llm/config", {
         method: "POST",
@@ -122,7 +141,7 @@ export function LLMConfigPanel() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProvider, selectedModel, selectedEffort, apiKey, setLLMState]);
+  }, [selectedProvider, selectedModel, selectedEffort, apiKey, customBaseURL, customSmallModel, isCustom, setLLMState]);
 
   const isStreamRunning = phase !== "idle" && phase !== "stopped";
   const hasChanges =
@@ -130,7 +149,12 @@ export function LLMConfigPanel() {
     (selectedProvider !== llmState.current.provider ||
       selectedModel !== llmState.current.model ||
       (selectedEffort || undefined) !== llmState.current.reasoningEffort ||
+      (isCustom && customBaseURL.trim() !== (llmState.current.baseURL ?? "")) ||
+      (isCustom && customSmallModel.trim() !== (llmState.current.smallModel ?? "")) ||
       apiKey.trim() !== "");
+
+  // For custom provider, require baseURL and model
+  const customValid = !isCustom || (customBaseURL.trim() !== "" && selectedModel.trim() !== "");
 
   return (
     <CollapsiblePanel title="LLM Settings" className="llm-config-panel">
@@ -139,8 +163,16 @@ export function LLMConfigPanel() {
         <div className="status-row">
           <span className="label">Current:</span>
           <span className="current-model">
-            {llmState.current.provider}/{llmState.current.model}
+            {llmState.current.provider === "custom"
+              ? `custom/${llmState.current.model}`
+              : `${llmState.current.provider}/${llmState.current.model}`}
             {llmState.current.reasoningEffort && ` (reasoning: ${llmState.current.reasoningEffort})`}
+            {llmState.current.baseURL && (
+              <>
+                <br />
+                <span className="env-hint">Endpoint: {llmState.current.baseURL}</span>
+              </>
+            )}
           </span>
         </div>
       )}
@@ -156,41 +188,84 @@ export function LLMConfigPanel() {
         >
           {providers.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} {p.hasApiKey ? "" : "(No API Key)"}
+              {p.name} {p.id !== "custom" && !p.hasApiKey ? "(No API Key)" : ""}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Model Selection */}
+      {/* Custom Provider: Base URL */}
+      {isCustom && (
+        <div className="form-group">
+          <label htmlFor="custom-baseurl-input">Endpoint URL</label>
+          <input
+            id="custom-baseurl-input"
+            type="text"
+            placeholder="https://api.example.com/v1"
+            value={customBaseURL}
+            onChange={(e) => setCustomBaseURL(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+      )}
+
+      {/* Model Selection — dropdown for built-in, text input for custom */}
       <div className="form-group">
         <label htmlFor="model-select">Model</label>
-        <select
-          id="model-select"
-          value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value)}
-          disabled={loading}
-        >
-          {currentProvider?.models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name} {m.description ? `- ${m.description}` : ""}
-            </option>
-          ))}
-        </select>
+        {isCustom ? (
+          <input
+            id="model-select"
+            type="text"
+            placeholder="model-name"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={loading}
+          />
+        ) : (
+          <select
+            id="model-select"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={loading}
+          >
+            {currentProvider?.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name} {m.description ? `- ${m.description}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
+
+      {/* Custom Provider: Small Model (optional) */}
+      {isCustom && (
+        <div className="form-group">
+          <label htmlFor="custom-small-model-input">
+            Small Model <span className="env-hint">(optional)</span>
+          </label>
+          <input
+            id="custom-small-model-input"
+            type="text"
+            placeholder="Same as model if empty"
+            value={customSmallModel}
+            onChange={(e) => setCustomSmallModel(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+      )}
 
       {/* API Key Input */}
       <div className="form-group">
         <label htmlFor="api-key-input">
           API Key
-          {currentProvider?.hasApiKey && (
+          {!isCustom && currentProvider?.hasApiKey && (
             <span className="env-hint"> (env var set)</span>
           )}
         </label>
         <input
           id="api-key-input"
           type="password"
-          placeholder={currentProvider?.hasApiKey ? "Using environment variable" : "Enter API key"}
+          placeholder={!isCustom && currentProvider?.hasApiKey ? "Using environment variable" : "Enter API key"}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           disabled={loading}
@@ -221,8 +296,8 @@ export function LLMConfigPanel() {
         <button
           className="btn btn-send"
           onClick={handleApply}
-          disabled={loading || !hasChanges || isStreamRunning}
-          title={isStreamRunning ? "Stop stream first" : ""}
+          disabled={loading || !hasChanges || isStreamRunning || !customValid}
+          title={isStreamRunning ? "Stop stream first" : !customValid ? "Endpoint URL and Model are required" : ""}
         >
           {loading ? "Applying..." : "Apply"}
         </button>

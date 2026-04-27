@@ -33,6 +33,10 @@ export async function startServer(configOverride?: Config) {
 
   await killPort(OPENCODE_CONFIG.port);
 
+  if (configOverride) {
+    logger.info(`OpenCode config: ${JSON.stringify(configOverride, null, 2)}`);
+  }
+
   const { client } = await createOpencode({
     hostname: OPENCODE_CONFIG.hostname,
     port: OPENCODE_CONFIG.port,

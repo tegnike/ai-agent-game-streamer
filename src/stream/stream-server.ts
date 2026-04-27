@@ -430,14 +430,20 @@ export class StreamServer {
           }
 
           case "/api/llm/config": {
-            const { provider, model, apiKey, reasoningEffort } = body as {
+            const { provider, model, apiKey, reasoningEffort, baseURL, smallModel } = body as {
               provider?: string;
               model?: string;
               apiKey?: string;
               reasoningEffort?: string;
+              baseURL?: string;
+              smallModel?: string;
             };
             if (!provider || !model) {
               this.sendJson(res, 400, { error: "provider and model are required" });
+              return;
+            }
+            if (provider === "custom" && !baseURL) {
+              this.sendJson(res, 400, { error: "baseURL is required for custom provider" });
               return;
             }
             const validEfforts = ["low", "medium", "high"];
@@ -448,6 +454,8 @@ export class StreamServer {
               reasoningEffort: reasoningEffort && validEfforts.includes(reasoningEffort)
                 ? (reasoningEffort as LLMConfig["reasoningEffort"])
                 : undefined,
+              baseURL: provider === "custom" ? baseURL : undefined,
+              smallModel: provider === "custom" ? smallModel : undefined,
             };
             const result = await this.handleLLMConfigAndRestart(config);
             this.sendJson(res, result.success ? 200 : 400, {

@@ -2,7 +2,8 @@ import type { GameId, GameConfig } from "../types.js";
 
 // --- LLM Configuration ---
 
-export type ProviderId = "openai" | "anthropic" | "google" | "zai";
+export type BuiltInProviderId = "openai" | "anthropic" | "google" | "zai";
+export type ProviderId = BuiltInProviderId | "custom";
 
 export type ReasoningEffort = "low" | "medium" | "high";
 
@@ -29,6 +30,10 @@ export interface LLMConfig {
   model: string;
   apiKey?: string; // Optional override (env var used if not provided)
   reasoningEffort?: ReasoningEffort;
+  /** OpenAI-compatible endpoint base URL (for "custom" provider) */
+  baseURL?: string;
+  /** Small model for summaries etc. (for "custom" provider, defaults to model) */
+  smallModel?: string;
 }
 
 export interface LLMState {

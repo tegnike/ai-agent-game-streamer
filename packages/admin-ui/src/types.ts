@@ -5,7 +5,7 @@ export * from "@agent-game/shared";
 
 // --- LLM Configuration ---
 
-export type ProviderId = "openai" | "anthropic" | "google" | "zai";
+export type ProviderId = "openai" | "anthropic" | "google" | "zai" | "custom";
 
 export type ReasoningEffort = "low" | "medium" | "high";
 
@@ -30,6 +30,10 @@ export interface LLMConfig {
   model: string;
   apiKey?: string;
   reasoningEffort?: ReasoningEffort;
+  /** OpenAI-compatible endpoint base URL (for "custom" provider) */
+  baseURL?: string;
+  /** Small model for summaries etc. (for "custom" provider, defaults to model) */
+  smallModel?: string;
 }
 
 export interface LLMState {

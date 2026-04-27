@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { Config } from "@opencode-ai/sdk";
 import type {
   ProviderId,
+  BuiltInProviderId,
   ModelInfo,
   ProviderInfo,
   LLMConfig,
@@ -80,7 +81,7 @@ interface ProviderConfig {
   baseURL?: string;
 }
 
-export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
+export const PROVIDER_CONFIGS: Record<BuiltInProviderId, ProviderConfig> = {
   openai: {
     name: "OpenAI",
     models: [
@@ -140,7 +141,9 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   zai: {
     name: "Zai (智谱AI)",
     models: [
-      // Zai: reasoning effort 非対応
+      // GLM-5: thinking mode (enabled/disabled) 対応
+      { id: "glm-5", name: "GLM-5", description: "最新フラッグシップ（思考モデル）", reasoningEfforts: ["low", "medium", "high"] },
+      // GLM-4.7: reasoning effort 非対応
       { id: "glm-4.7", name: "GLM-4.7", description: "フラッグシップ" },
       { id: "glm-4.7-flash", name: "GLM-4.7 Flash", description: "高速版" },
     ],
@@ -156,7 +159,7 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
  * Get list of all providers with API key availability status
  */
 export function getProviderInfoList(): ProviderInfo[] {
-  return (Object.keys(PROVIDER_CONFIGS) as ProviderId[]).map((id) => {
+  const builtIn: ProviderInfo[] = (Object.keys(PROVIDER_CONFIGS) as BuiltInProviderId[]).map((id) => {
     const config = PROVIDER_CONFIGS[id];
     return {
       id,
@@ -168,6 +171,19 @@ export function getProviderInfoList(): ProviderInfo[] {
       baseURL: config.baseURL,
     };
   });
+
+  // Add custom (OpenAI-compatible) provider
+  builtIn.push({
+    id: "custom" as ProviderId,
+    name: "Custom (OpenAI Compatible)",
+    models: [],
+    envKey: "CUSTOM_OPENAI_API_KEY",
+    hasApiKey: !!process.env.CUSTOM_OPENAI_API_KEY,
+    npm: undefined,
+    baseURL: undefined,
+  });
+
+  return builtIn;
 }
 
 // --- Reasoning Effort → Provider Options Mapping ---
@@ -195,9 +211,9 @@ const GEMINI25_FLASH_LITE_BUDGET: Record<ReasoningEffort, number> = {
  * Check if a model supports reasoning effort by looking up PROVIDER_CONFIGS.
  */
 function modelSupportsReasoning(provider: string, model: string): boolean {
-  const providerConfig = PROVIDER_CONFIGS[provider as ProviderId];
+  const providerConfig = PROVIDER_CONFIGS[provider as BuiltInProviderId];
   if (!providerConfig) return false;
-  const modelInfo = providerConfig.models.find((m) => m.id === model);
+  const modelInfo = providerConfig.models.find((m: ModelInfo) => m.id === model);
   return !!modelInfo?.reasoningEfforts?.length;
 }
 
@@ -249,6 +265,13 @@ function buildReasoningOptions(
       // Gemini 2.5 Pro / Flash: thinkingBudget (数値)
       return { thinkingConfig: { thinkingBudget: GEMINI25_BUDGET[effort] } };
 
+    case "zai":
+      // GLM-5: thinking mode (enabled/disabled)
+      // low → disabled, medium/high → enabled
+      return {
+        thinking: { type: effort === "low" ? "disabled" : "enabled" },
+      };
+
     default:
       return undefined;
   }
@@ -258,6 +281,43 @@ function buildReasoningOptions(
  * Build OpenCode SDK Config from LLMConfig
  */
 export function buildModelConfigFromLLM(llmConfig: LLMConfig): Config {
+  // --- Custom (OpenAI-compatible) provider ---
+  if (llmConfig.provider === "custom") {
+    if (!llmConfig.baseURL) {
+      throw new Error("Custom provider requires baseURL");
+    }
+    const ENV_KEY = "CUSTOM_OPENAI_API_KEY";
+    if (llmConfig.apiKey) {
+      process.env[ENV_KEY] = llmConfig.apiKey;
+    }
+    const smallModel = llmConfig.smallModel || llmConfig.model;
+    const modelEntry: Record<string, unknown> = { name: llmConfig.model };
+    // Pass reasoning_effort as OpenAI-compatible model option
+    if (llmConfig.reasoningEffort) {
+      modelEntry.options = { reasoning_effort: llmConfig.reasoningEffort };
+    }
+    const models: Record<string, Record<string, unknown>> = {
+      [llmConfig.model]: modelEntry,
+    };
+    if (smallModel !== llmConfig.model) {
+      models[smallModel] = { name: smallModel };
+    }
+    return {
+      model: `custom/${llmConfig.model}`,
+      small_model: `custom/${smallModel}`,
+      provider: {
+        custom: {
+          npm: "@ai-sdk/openai-compatible",
+          name: "Custom (OpenAI Compatible)",
+          env: [ENV_KEY],
+          options: { baseURL: llmConfig.baseURL },
+          models,
+        },
+      },
+    } as Config;
+  }
+
+  // --- Built-in providers ---
   const providerConfig = PROVIDER_CONFIGS[llmConfig.provider];
   if (!providerConfig) {
     throw new Error(`Unknown provider: ${llmConfig.provider}`);
