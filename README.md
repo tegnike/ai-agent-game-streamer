@@ -122,7 +122,7 @@ AIエージェントのプレイプロンプトは各手の前に `GET /api/tts/
 
 ### 外部ナレーションruntime
 
-ナレーション表示、TTS再生、WebSocket relayは外部の `narration-runtime` を標準モデルとして使います。`ai-agent-game-streamer` はproducerとして外部relayへ `narration:say` を送信し、relayやUIが未起動でもゲーム進行を継続します。`npm run stream:managed` はrelayを同一プロセス内で起動しません。
+ナレーション表示、TTS再生、WebSocket relayは外部の `narration-runtime` を標準モデルとして使います。リポジトリは `git@github.com:tegnike/narration-runtime.git` です。`ai-agent-game-streamer` はproducerとして外部relayへ `narration:say` を送信し、relayやUIが未起動でもゲーム進行を継続します。`npm run stream:managed` はrelayを同一プロセス内で起動しません。
 
 ```bash
 # narration-runtime repo

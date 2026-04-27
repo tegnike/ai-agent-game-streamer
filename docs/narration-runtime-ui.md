@@ -156,25 +156,33 @@ UIが接続していない場合、relayはproducerへ `narration:skipped` を�
 - `NARRATION_WAIT_MODE=busy` ではclientのpending状態を `EventHub.setTTSBusy()` に反映します。
 - そのため、既存の `/api/tts/wait` は外部UI側の再生中もbusyとして待てます。
 
-## pokechamp連携
+## 他アプリ連携
 
-`pokechamp` 側には `NarrationUIClient` を追加し、`NarratorPlayer` の `_speak_with_emotion()` から外部UIへ `narration:say` を送れるようにしました。
+他アプリは `narration-runtime` のWebSocket protocolを実装するか、TypeScriptの場合は
+`@narration-runtime/client` を使ってproducerとして接続します。
 
-利用例:
+TypeScript producer例:
 
-```bash
-# narration-runtime 側
-npm run relay
-npm run ui:dev
+```ts
+import { NarrationClient } from "@narration-runtime/client";
 
-# pokechamp 側
-uv run python narrator/run_narrator_battle.py \
-  --backend gpt-5.2 \
-  --battle_format gen9bssregj \
-  --narration_ui
+const client = new NarrationClient({
+  url: "ws://localhost:3010/ws/narration",
+  clientName: "my-app",
+});
+
+await client.connect();
+await client.say({
+  text: "ここは慎重にいきます。",
+  speaker: "nike",
+  emotion: "thinking",
+});
 ```
 
-このモードでは、pokechamp側ではVOICEVOXのWAVを生成せず、外部 `narration-runtime` のUI側がTTS生成・再生を担当します。`NarratorPlayer` は `narration:completed` または `narration:skipped` などの完了statusを待ってから次の行動へ進みます。
+PythonなどTypeScript以外のproducerは、接続直後に
+`{"type":"narration:hello","role":"producer","clientName":"..."}` を送り、
+以後 `narration:say` を送信します。完了判定は
+`narration:completed`、`narration:failed`、`narration:skipped` のいずれかです。
 
 ## キャラUI
 
@@ -201,16 +209,21 @@ uv run python narrator/run_narrator_battle.py \
 推奨コマンド:
 
 ```bash
-npm run build
-npm test
 # narration-runtime repo
 npm run build
-npm run ui:build
+npm test
+npm run smoke
+npm run smoke:ai-agent-game-streamer
+
+# ai-agent-game-streamer repo
+npm run build
+npm test
 ```
 
 relayのproducer/UI往復は、`narration-runtime` 側のスモークテストで `narration:say` から `narration:completed` または `narration:skipped` まで確認します。
 
-未確認:
+確認済み:
 
-- 外部 `narration-runtime` relayを停止した状態でも `ai-agent-game-streamer` の `stream:managed` が継続すること。
-- UI未接続時に `narration:skipped` でproducer側が継続すること。
+- 外部 `narration-runtime` relay + mock UI に対して、`ai-agent-game-streamer` のproducer adapterが `narration:say` を送り、`narration:completed` を受け取れること。
+- UI未接続時にrelayが `narration:skipped` を返し、producer側が完了扱いにできること。
+- relay未起動時に `NarrationClientAdapter` がデフォルトで `narration:skipped` 相当を返し、ゲーム進行を止めないこと。
