@@ -19,8 +19,11 @@
     "admin:build": "npm run build -w @agent-game/admin-ui",
     "stream:dev": "npm run dev -w @agent-game/stream-ui",
     "stream:build": "npm run build -w @agent-game/stream-ui",
+    "narration:relay": "tsx src/narration/index.ts",
+    "narration:dev": "npm run dev -w @agent-game/narration-ui",
+    "narration:build": "npm run build -w @agent-game/narration-ui",
     "shared:build": "npm run build -w @agent-game/shared",
-    "ui:build": "npm run shared:build && npm run admin:build && npm run stream:build"
+    "ui:build": "npm run shared:build && npm run admin:build && npm run stream:build && npm run narration:build"
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",

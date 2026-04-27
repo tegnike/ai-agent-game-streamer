@@ -120,6 +120,23 @@ npm run stream:dev
 
 AIエージェントのプレイプロンプトは各手の前に `GET /api/tts/wait` を呼ぶようになっています。Stream UIがWebSocketで `tts:status` を送ることで、ゲーム操作が音声読み上げ完了を待てる構成です。
 
+### 独立ナレーションUI
+
+AIプレイシステムと疎結合にするための独立UIもあります。Narration Relayは単独起動、または `npm run stream:managed` 起動時に `ws://localhost:3010/ws/narration` で立ち上がり、UIは `narration:say` を受け取ってTTS再生後に `narration:completed` を返します。
+
+```bash
+npm run narration:relay
+npm run narration:dev
+```
+
+- Narration UI: `http://localhost:5175`
+- Narration WebSocket: `ws://localhost:3010/ws/narration`
+- Status API: `http://localhost:3010/api/narration/status`
+
+外部システムは最初に `{"type":"narration:hello","role":"producer"}` を送り、その後 `narration:say` を送信します。UIが接続していない場合は `narration:skipped` が返り、ゲーム進行はブロックされません。
+
+詳細な構成・プロトコル・pokechamp連携は [docs/narration-runtime-ui.md](docs/narration-runtime-ui.md) を参照してください。
+
 ### 手動でゲームを確認
 
 ```bash
@@ -179,8 +196,10 @@ agent-browser close
 | OpenCode Server | 4096 | `src/config.ts` |
 | ゲームHTTPサーバー | 8888 | `src/config.ts` |
 | Stream Server / REST / WebSocket | 3000 | `--admin-port` または `STREAM_PORT` |
+| Narration Relay | 3010 | `--narration-port` または `NARRATION_PORT` |
 | Admin UI dev server | 5173 | `packages/admin-ui/vite.config.ts` |
 | Stream UI dev server | 5174 | `packages/stream-ui/vite.config.ts` |
+| Narration UI dev server | 5175 | `packages/narration-ui/vite.config.ts` |
 | VOICEVOX Engine例 | 50021 / 10101 | Stream UI設定・プロキシ設定 |
 | わんコメ | 11180 | 接続設定 |
 

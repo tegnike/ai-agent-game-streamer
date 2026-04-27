@@ -3,7 +3,7 @@ import { startServer, connectToServer } from "./server.js";
 import { GameOrchestrator } from "./game-orchestrator.js";
 import { GAME_REGISTRY, getRandomGame } from "./games/game-registry.js";
 import { logger } from "./utils/logger.js";
-import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG } from "./config.js";
+import { buildModelConfig, STREAM_SERVER_PORT, GAME_SERVER_PORT, OPENCODE_CONFIG, NARRATION_SERVER_PORT } from "./config.js";
 import type { GameId } from "./types.js";
 import type { ReasoningEffort } from "./stream/types.js";
 import { EventHub } from "./stream/event-hub.js";
@@ -11,6 +11,8 @@ import { StreamManager } from "./stream/stream-manager.js";
 import { StreamServer } from "./stream/stream-server.js";
 import { BrowserManager } from "./utils/browser-manager.js";
 import { LLMConfigManager } from "./stream/llm-config-manager.js";
+import { NarrationRelayServer } from "./narration/narration-relay-server.js";
+import { NarrationEventBridge } from "./narration/narration-event-bridge.js";
 import type { OpencodeClient } from "@opencode-ai/sdk";
 
 function parseArg(args: string[], prefix: string): string | undefined {
@@ -34,6 +36,7 @@ async function main() {
   const modelName = parseArg(args, "--model=");
   const reasoningEffort = parseArg(args, "--reasoning-effort=");
   const adminPortArg = parseArg(args, "--admin-port=");
+  const narrationPortArg = parseArg(args, "--narration-port=");
   const visualEndpoint = parseArg(args, "--visual-endpoint=");
   const visualInterval = parseArg(args, "--visual-interval=");
 
@@ -68,6 +71,8 @@ async function main() {
   let eventHub: EventHub | undefined;
   let streamManager: StreamManager | undefined;
   let streamServer: StreamServer | undefined;
+  let narrationRelay: NarrationRelayServer | undefined;
+  let narrationBridge: NarrationEventBridge | undefined;
 
   if (adminMode) {
     eventHub = new EventHub();
@@ -230,6 +235,14 @@ async function main() {
 
     await streamServer.start();
 
+    const narrationPort = narrationPortArg
+      ? parseInt(narrationPortArg, 10)
+      : parseInt(process.env.NARRATION_PORT ?? "", 10) || NARRATION_SERVER_PORT;
+    narrationRelay = new NarrationRelayServer(narrationPort);
+    await narrationRelay.start();
+    narrationBridge = new NarrationEventBridge(eventHub, narrationRelay);
+    narrationBridge.start();
+
     const orchestrator = new GameOrchestrator(clientRef.current, eventHub, browserManager);
     orchestrator.setStreamManager(streamManager);
     orchestratorRef.current = orchestrator;
@@ -252,6 +265,8 @@ async function main() {
       logger.info("Shutting down...");
       streamManager!.transition("stopped");
       orchestrator.getEventMonitor().stopMonitoring();
+      narrationBridge?.stop();
+      await narrationRelay?.stop();
       await browserManager.close();
       await orchestrator.getProcessManager().stopGameServer();
       await streamServer!.stop();

@@ -1,0 +1,198 @@
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+@import "tailwindcss";
+
+/* biim式レトロゲーム風スタイル */
+
+:root {
+  --biim-border: #c0c0c0;
+  --biim-border-dark: #808080;
+  --biim-border-light: #ffffff;
+  --biim-bg: #000080;
+  --biim-panel-bg: #c0c0c0;
+  --biim-text: #000000;
+  --biim-accent: #ff0000;
+  --biim-highlight: #ffff00;
+}
+
+/* レトロゲーム風のボーダー（立体的） */
+.biim-border {
+  border: 3px solid;
+  border-color: var(--biim-border-light) var(--biim-border-dark) var(--biim-border-dark) var(--biim-border-light);
+  box-shadow:
+    inset 1px 1px 0 var(--biim-border-light),
+    inset -1px -1px 0 var(--biim-border-dark);
+}
+
+.biim-border-inset {
+  border: 3px solid;
+  border-color: var(--biim-border-dark) var(--biim-border-light) var(--biim-border-light) var(--biim-border-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--biim-border-dark),
+    inset -1px -1px 0 var(--biim-border-light);
+}
+
+/* パネルスタイル */
+.biim-panel {
+  background: var(--biim-panel-bg);
+  font-family: 'DotGothic16', 'MS Gothic', 'ＭＳ ゴシック', monospace;
+}
+
+/* タイトルバー */
+.biim-title {
+  background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+  color: white;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: bold;
+  font-family: 'DotGothic16', 'MS Gothic', monospace;
+}
+
+/* 情報エリアの各セクション */
+.biim-section {
+  background: var(--biim-panel-bg);
+  margin: 4px;
+}
+
+.biim-section-title {
+  background: #000080;
+  color: #ffff00;
+  padding: 2px 8px;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  font-family: 'DotGothic16', 'MS Gothic', monospace;
+}
+
+.biim-section-content {
+  padding: 8px;
+  font-size: 14px;
+  color: var(--biim-text);
+  font-family: 'DotGothic16', 'MS Gothic', monospace;
+}
+
+/* タイマー表示 */
+.biim-timer {
+  font-family: 'DotGothic16', 'Courier New', monospace;
+  font-size: 32px;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 2px 2px 0 #004400;
+  background: #000000;
+  padding: 4px 16px;
+}
+
+/* 区間タイム */
+.biim-split {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px;
+  border-bottom: 1px dotted #808080;
+  font-size: 12px;
+}
+
+.biim-split:last-child {
+  border-bottom: none;
+}
+
+.biim-split-current {
+  background: #ffff00;
+  font-weight: bold;
+}
+
+.biim-split-ahead {
+  color: #00aa00;
+}
+
+.biim-split-behind {
+  color: #ff0000;
+}
+
+/* ガバ集計 */
+.biim-gaba-count {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ff0000;
+  text-align: center;
+  font-family: 'DotGothic16', 'Impact', monospace;
+}
+
+/* 字幕スタイル（biim式） */
+.biim-subtitle {
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #ffffff;
+  padding: 8px 16px;
+  font-family: 'DotGothic16', 'MS Gothic', monospace;
+  font-size: 20px;
+  color: #ffffff;
+  text-shadow: 2px 2px 0 #000000;
+}
+
+/* ゲーム画面エリア */
+.biim-game-area {
+  background: #000000;
+  aspect-ratio: 16/9;
+}
+
+/* 全体のレイアウト背景 */
+.biim-layout {
+  background: var(--biim-bg);
+  font-family: 'DotGothic16', 'MS Gothic', monospace;
+}
+
+/* プログレスバー */
+.biim-progress {
+  height: 20px;
+  background: #404040;
+  border: 2px solid;
+  border-color: var(--biim-border-dark) var(--biim-border-light) var(--biim-border-light) var(--biim-border-dark);
+}
+
+.biim-progress-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #00ff00 0%, #00aa00 50%, #006600 100%);
+  transition: width 0.3s ease;
+}
+
+/* イベントログ（biim式） */
+.biim-log {
+  background: #000000;
+  color: #00ff00;
+  font-family: 'DotGothic16', 'Courier New', monospace;
+  font-size: 11px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.biim-log-entry {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* キャラクター配置 */
+.biim-character {
+  position: relative;
+}
+
+/* 点滅アニメーション */
+@keyframes biim-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.biim-blink {
+  animation: biim-blink 1s infinite;
+}
+
+/* ステータスインジケーター */
+.biim-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.biim-status-ok { background: #00ff00; }
+.biim-status-warn { background: #ffff00; }
+.biim-status-error { background: #ff0000; }

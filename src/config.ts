@@ -24,6 +24,7 @@ export const AGENT_NAME = "game-streamer";
 
 // --- Stream Server ---
 export const STREAM_SERVER_PORT = 3000;
+export const NARRATION_SERVER_PORT = 3010;
 export const DEFAULT_PAUSE_BETWEEN_GAMES = 5000;
 export const DEFAULT_VISUAL_BATCH_INTERVAL = 500;
 
