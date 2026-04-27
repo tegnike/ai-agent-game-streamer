@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import type { NarrationEmotion } from '../types'
 
-export function useCharacterAnimation(isSpeaking: boolean) {
+export function useCharacterAnimation(isSpeaking: boolean, emotion: NarrationEmotion) {
   const [state, setState] = useState({ mouthOpen: false, eyeOpen: true, bounceY: 0 })
   const startTimeRef = useRef(performance.now())
 
@@ -28,6 +29,6 @@ export function useCharacterAnimation(isSpeaking: boolean) {
     return () => cancelAnimationFrame(animId)
   }, [isSpeaking])
 
-  const imageName = `eye_${state.eyeOpen ? 'open' : 'close'}_mouth_${state.mouthOpen ? 'open' : 'close'}.png`
-  return { imageName, bounceY: state.bounceY }
+  const imagePath = `${emotion}/eye${state.eyeOpen ? 'ON' : 'OFF'}_mouth_${state.mouthOpen ? 'ON' : 'OFF'}.png`
+  return { imagePath, bounceY: state.bounceY }
 }

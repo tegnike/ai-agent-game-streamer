@@ -1,22 +1,26 @@
 import { useEffect } from 'react'
 import { useStreamStore } from '../store/stream-store'
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation'
+import { NARRATION_EMOTIONS } from '../services/narration-emotion'
 
 const IMAGE_NAMES = [
-  'eye_open_mouth_close',
-  'eye_open_mouth_open',
-  'eye_close_mouth_close',
-  'eye_close_mouth_open',
+  'eyeON_mouth_OFF',
+  'eyeON_mouth_ON',
+  'eyeOFF_mouth_OFF',
+  'eyeOFF_mouth_ON',
 ]
 
 export function CharacterDisplay() {
   const isSpeaking = useStreamStore((s) => s.isSpeaking)
-  const { imageName, bounceY } = useCharacterAnimation(isSpeaking)
+  const emotion = useStreamStore((s) => s.currentEmotion)
+  const { imagePath, bounceY } = useCharacterAnimation(isSpeaking, emotion)
 
   // プリロード
   useEffect(() => {
-    IMAGE_NAMES.forEach((name) => {
-      new Image().src = `/images/nikechan/${name}.png`
+    NARRATION_EMOTIONS.forEach((emotionName) => {
+      IMAGE_NAMES.forEach((name) => {
+        new Image().src = `/images/nikechan/${emotionName}/${name}.png`
+      })
     })
   }, [])
 
@@ -26,7 +30,7 @@ export function CharacterDisplay() {
       style={{ transform: `translateY(${bounceY}px)` }}
     >
       <img
-        src={`/images/nikechan/${imageName}`}
+        src={`/images/nikechan/${imagePath}`}
         alt="nikechan"
         className="h-[200px] object-contain"
       />

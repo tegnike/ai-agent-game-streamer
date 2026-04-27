@@ -8,3 +8,5 @@ export interface TTSSentence {
   status: "pending" | "synthesizing" | "ready" | "playing" | "done" | "cancelled";
   audioData: ArrayBuffer | null;
 }
+
+export type NarrationEmotion = 'neutral' | 'happy' | 'angry' | 'sad' | 'thinking'

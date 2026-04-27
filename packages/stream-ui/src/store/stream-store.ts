@@ -3,6 +3,7 @@ import type {
   StreamState,
   AgentActivity,
   ConnectionStatus,
+  NarrationEmotion,
 } from '../types'
 import { MAX_ACTIVITIES, MAX_EVENT_LOG } from '../constants'
 
@@ -31,6 +32,8 @@ interface StreamStore {
   setIsTTSBusy: (busy: boolean) => void
   currentSubtitle: string
   setSubtitle: (text: string) => void
+  currentEmotion: NarrationEmotion
+  setEmotion: (emotion: NarrationEmotion) => void
 
   // VOICEVOX
   voicevoxStatus: 'connected' | 'unavailable' | 'checking'
@@ -97,6 +100,8 @@ export const useStreamStore = create<StreamStore>((set) => ({
   setIsTTSBusy: (busy) => set({ isTTSBusy: busy }),
   currentSubtitle: '',
   setSubtitle: (text) => set({ currentSubtitle: text }),
+  currentEmotion: 'neutral',
+  setEmotion: (emotion) => set({ currentEmotion: emotion }),
 
   voicevoxStatus: 'checking',
   setVoicevoxStatus: (status) => set({ voicevoxStatus: status }),
